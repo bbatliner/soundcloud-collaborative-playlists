@@ -12,6 +12,7 @@
     "page": "src/background.html"
   },
   "permissions": [
+    "tabs",
     "notifications",
     "https://soundcloud.com/*",
     "https://localhost:3000/"
@@ -23,14 +24,8 @@
         "https://soundcloud.com/*"
       ],
       "js": [
-        "src/inject.js"
-      ]
-    },
-    {
-      "matches": [
-        "https://soundcloud.com/*/sets/*"
-      ],
-      "js": [
+        "src/globals.js",
+        "src/main.js",
         "src/sets.js"
       ]
     }

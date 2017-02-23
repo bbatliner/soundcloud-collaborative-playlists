@@ -1,12 +1,19 @@
 // Initialize Firebase
 const config = {
-  apiKey: "AIzaSyBBgIlKYOKr0Jm4-57PCkUfUeiPSjjKrt0",
-  authDomain: "collaborative-playlists.firebaseapp.com",
-  databaseURL: "https://collaborative-playlists.firebaseio.com",
-  storageBucket: "collaborative-playlists.appspot.com",
-  messagingSenderId: "1021011259445"
+  apiKey: 'AIzaSyBBgIlKYOKr0Jm4-57PCkUfUeiPSjjKrt0',
+  authDomain: 'collaborative-playlists.firebaseapp.com',
+  databaseURL: 'https://collaborative-playlists.firebaseio.com',
+  storageBucket: 'collaborative-playlists.appspot.com',
+  messagingSenderId: '1021011259445'
 }
 firebase.initializeApp(config)
+
+// Listen for url changes
+// chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+//   if (changeInfo.url && changeInfo.url.match(/https:\/\/soundcloud\.com\/.+\/sets\/.+/)) {
+//     chrome.tabs.executeScript(null, { file: 'src/sets.js' });
+//   }
+// })
 
 chrome.extension.onConnect.addListener(port => {
   function errorHandler (err) {
@@ -27,6 +34,7 @@ chrome.extension.onConnect.addListener(port => {
         firebase.auth().currentUser.updateProfile(msg.profile).catch(errorHandler)
         return
       }
+
     })
 
     firebase.auth().onAuthStateChanged(user => {

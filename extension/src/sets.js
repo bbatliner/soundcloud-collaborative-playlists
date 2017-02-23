@@ -1,7 +1,13 @@
 'use strict'
 
+// getPlaylistData(location.href)
+
+console.log('Hello I am sets.js')
+
 // Get username and set name from url
-const [ , username, setName ] = location.href.match('https://soundcloud.com/(.*)/sets/(.*)')
+// const [ , username, setName ] = location.href.match('https://soundcloud.com/(.*)/sets/(.*)')
+// Get playlist id from page
+// const [ , setId ] = document.head.innerHTML.match(/"soundcloud:\/\/playlists:(\d+)"/)
 
 const observer = new MutationObserver(mutations => {
   mutations.forEach(mutation => {
