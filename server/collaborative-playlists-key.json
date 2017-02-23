@@ -1,0 +1,12 @@
+{
+  "type": "service_account",
+  "project_id": "collaborative-playlists",
+  "private_key_id": "951bd69c6a1ce529ab662b1d51fbafb0ca7b909f",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDKysOl/RA1d7P6\nKLvveQn8cNrEyFZm126BEs2/HHUj4Aax3HWfMoA/NGYVInCHlrO74mfX/JSfbOcA\nVcOxhdxRlT62BdN2ARzu/gP85xqGJzryOtPcfmXfkMY7bUnbaJRC758bgNS9zKtM\nb/qckVi7sJuXm0QRIM5wQH7YlWx3mqi0Os+kAN4qbgyCA9RjIlm7HGPvlMOypLLX\noMm594TohCl1z9ZaT6ErlFuGjEhpx9ZuTgFeLY4YDsCN62WAWK9nObsZhLj7M20D\noO0MWK8rPJrEXO+eqYNrVZbrkGQY7h/rRvBIthGODGzeG7n9UWnrLoVDHyXxhg9+\n6tZjBXFjAgMBAAECggEBAIxVVJ8BSL43X+y1U5icgjSXREz49hGk82uOv6KI5uc0\nmG1syliocedLM3lco9KwjyBtxL7Ko27PxeuNbibjI1uxk/wSfAslKgiY79mLc+dy\nLnCCFSp4rbbQUN2++2VCMZdAizJVLONLRx9WPm8qheUcig+X+rp/oVw8xYrLnIwG\n125GEjYCpbf8VLLONMVTHOerwOh9nzTAAssp86R2pE8urx1UlJYft3tqPk1s9uKU\nDoAT6nIkLb2Ah3pwH+M4DryAdghPy4zHSsXcpHuerYos8rHnw+YDzcYEtzmYAqRP\nQ1kFS04fkItOdjCQqfyu3HEd42gZHTOqA5ldjCX9/AECgYEA5JXGp6VCdE/IkSWY\n6IinTcfzR4jpAqaE0SnajmBr/ZNjjiYTqGt6VmFLjoDOlpOLXyT5iypAy+3lLmqq\nxNuNzf8PmDhvyMMvxTZun04wnFMPjDd9zw39dvWzGBUD5jvSEu6nQ1Yg/RroGO+4\nR51tZJB2A3DeIuspC/QowBQEmMECgYEA4x0RZKoLnMb9vTTArbI+4kDfosRWLn8l\nZLWDxCRWDq7W1A1glqOH3CK9KbvBAxQV/EDIDTjDtercXjB8Z0Y7crL+5+YPuTDR\ncURThtIkxUIlwkj8RDUMZOnbaPIwkku8UWY+j80s6H61OyUgU+hxfoNZg7qzgJT5\n8Q2qE8KBTyMCgYEAn1Y0Epok15ThtyOhEb5n+NT/JQcvfVR70p09Ju/ZdvntdKHg\nJA8/SMUreNsapmWUyi6o8DP01PIwRgm+ndh5YXWA9leovCYqv2qw88T6J43SkagA\nv3r+CpU8UPYdMLjUN7Q5zbtU5XmC/hbjuq/nGCmGyeE8RtTrWNTKLxIFHkECgYBw\ni+4boXzhs2b4xVSafxNUkeuBQKSopA+GycDDiXIwEoqZSQvNerqP55MwRD/Q47pF\naGD61F+AHiQYdRShJRe+rl9N0h+GmV+hLsfprufT7QTDM+H3dwZuV8mIR0S0qt1m\nxTFJl9aiXHA5IBvWGQFtPXA1rGbZ2HnH8AqRgjkMWwKBgDVxc37kowXVhvWUQwsC\n7MFR1FsBmG7hhZPTKKezIOSNKgix/ybkftkbsQYJ5sp+JbdxCWotbgd5rEy6Drs6\nLx5QxUbBmoljsZ/pMYYbY/Stov6PAsFMXN2GSnSvHe3Fsc7gKH2uEBNGVwV6nXx6\nhQbVJ6F0xaRGEbPQsoDwaIJ7\n-----END PRIVATE KEY-----\n",
+  "client_email": "collaborative-playlists@appspot.gserviceaccount.com",
+  "client_id": "109289883528117313499",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://accounts.google.com/o/oauth2/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/collaborative-playlists%40appspot.gserviceaccount.com"
+}
