@@ -8,17 +8,22 @@ const config = {
 }
 firebase.initializeApp(config)
 
-// Listen for url changes
-// chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
-//   if (changeInfo.url && changeInfo.url.match(/https:\/\/soundcloud\.com\/.+\/sets\/.+/)) {
-//     chrome.tabs.executeScript(null, { file: 'src/sets.js' });
-//   }
-// })
-
 chrome.extension.onConnect.addListener(port => {
   function errorHandler (err) {
     console.error(err)
     port.postMessage({ type: 'error', error: err })
+  }
+
+  if (port.name === 'fb_msgs') {
+    // Listen for url changes
+    chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+      if (!tab.url) {
+        return
+      }
+      if (tab.url.match(/https:\/\/soundcloud\.com\/.+\/sets\/.+/)) {
+        port.postMessage({ type: 'refresh', name: 'playlist' })
+      }
+    })
   }
 
   if (port.name === 'fb_msgs') {

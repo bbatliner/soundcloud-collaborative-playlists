@@ -2,7 +2,6 @@
 
 // getPlaylistData(location.href)
 
-console.log('Hello I am sets.js')
 
 // Get username and set name from url
 // const [ , username, setName ] = location.href.match('https://soundcloud.com/(.*)/sets/(.*)')
@@ -23,6 +22,7 @@ const observer = new MutationObserver(mutations => {
         newItem.addEventListener('click', (e) => {
           e.preventDefault()
           e.stopPropagation()
+          getPlaylistData().then(data => console.log('I am playlist data!', data))
           const menu = document.querySelector('.dropdownMenu')
           menu.parentNode.removeChild(menu)
           const labelsParent = document.querySelector('.baseFields__playlistTypeSelect .sc-button-alt-labels')
