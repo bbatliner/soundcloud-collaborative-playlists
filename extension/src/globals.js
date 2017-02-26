@@ -24,6 +24,9 @@ const { updateUserData, getUserData } = (function () {
           userIsUpdating = false
           return userData
         })
+        .catch(() => {
+          userIsUpdating = false
+        })
     },
     getUserData () {
       if (!userPromise) {
@@ -52,6 +55,9 @@ const { updatePlaylistData, getPlaylistData } = (function () {
           playlist = playlistData
           playlistIsUpdating = false
           return playlistData
+        })
+        .catch(() => {
+          playlistIsUpdating = false
         })
     },
     getPlaylistData () {
