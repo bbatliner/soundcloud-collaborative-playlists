@@ -6,6 +6,10 @@ function ctaButtonClickHandler () {
   getPlaylistData().then(playlistData => {
     console.log('saved')
     console.log(playlistData)
+    port.postMessage({
+      type: 'mark-collaborative',
+      playlistId: playlistData.id
+    })
     setTimeout(() => {
       const closeButton = document.querySelector('.modal__closeButton')
       if (closeButton) {

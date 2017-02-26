@@ -40,6 +40,14 @@ chrome.extension.onConnect.addListener(port => {
         return
       }
 
+      if (msg.type === 'mark-collaborative') {
+        firebase.database().ref(`collaborativePlaylists/${msg.playlistId}`).once('value', (snapshot) => {
+          if (!snapshot.exists()) {
+            firebase.database().ref(`collaborativePlaylists/${msg.playlistId}`).set(true)
+          }
+        })
+      }
+
     })
 
     firebase.auth().onAuthStateChanged(user => {
