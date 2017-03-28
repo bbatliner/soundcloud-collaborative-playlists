@@ -25,21 +25,28 @@ port.onMessage.addListener(msg => {
 
 function ctaButtonClickHandler (e) {
   getPlaylistData().then(playlistData => {
-    port.postMessage({
-      type: 'markCollaborative',
-      playlistId: playlistData.id
-    })
-    e.target.classList.add('sc-pending')
-    e.target.innerHTML = 'Saving'
-    e.target.disabled = 'disabled'
-    setTimeout(() => {
-      e.target.classList.remove('sc-pending')
-      e.target.innerHTML = 'Save Changes'
-      const closeButton = document.querySelector('.modal__closeButton')
-      if (closeButton) {
-        closeButton.click()
-      }
-    }, 750)
+    if (isCollaborative) {
+      port.postMessage({
+        type: 'markCollaborative',
+        playlistId: playlistData.id
+      })
+      e.target.classList.add('sc-pending')
+      e.target.innerHTML = 'Saving'
+      e.target.disabled = 'disabled'
+      setTimeout(() => {
+        e.target.classList.remove('sc-pending')
+        e.target.innerHTML = 'Save Changes'
+        const closeButton = document.querySelector('.modal__closeButton')
+        if (closeButton) {
+          closeButton.click()
+        }
+      }, 750)
+    } else {
+      port.postMessage({
+        type: 'unmarkCollaborative',
+        playlistId: playlistData.id
+      })
+    }
   })
 }
 
@@ -67,6 +74,7 @@ const observer = new MutationObserver(mutations => {
         newLink.href = ''
         newLink.textContent = 'Collaborative Playlist'
         const ctaButton = document.querySelector('.audibleEditForm__formButtons .sc-button-cta')
+        ctaButton.addEventListener('click', ctaButtonClickHandler)
         newItem.addEventListener('click', (e) => {
           e.preventDefault()
           e.stopPropagation()
@@ -78,12 +86,10 @@ const observer = new MutationObserver(mutations => {
             labelsParent.children[i].textContent = 'Collaborative Playlist'
           }
           ctaButton.removeAttribute('disabled')
-          ctaButton.addEventListener('click', ctaButtonClickHandler)
         })
         Array.from(list.querySelectorAll('li')).forEach(li => {
           li.addEventListener('click', () => {
             isCollaborative = false
-            ctaButton.removeEventListener('click', ctaButtonClickHandler)
             const labelsParent = document.querySelector('.baseFields__playlistTypeSelect .sc-button-alt-labels')
             for (let i = 0; i < labelsParent.children.length; i++) {
               labelsParent.children[i].textContent = li.firstElementChild.textContent
