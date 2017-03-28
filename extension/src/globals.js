@@ -48,7 +48,7 @@ const { updatePlaylistData, getPlaylistData } = (function () {
   return {
     updatePlaylistData (url) {
       playlistIsUpdating = true
-      playlistPromise = fetch(`https://api.soundcloud.com/resolve.json?url=${url}&client_id=z8LRYFPM4UK5MMLaBe9vixfph5kqNA25`)
+      return playlistPromise = fetch(`https://api.soundcloud.com/resolve.json?url=${url}&client_id=z8LRYFPM4UK5MMLaBe9vixfph5kqNA25`)
         .then(checkStatus)
         .then(response => response.json())
         .then(playlistData => {
@@ -62,7 +62,8 @@ const { updatePlaylistData, getPlaylistData } = (function () {
     },
     getPlaylistData () {
       if (!playlistPromise) {
-        updatePlaylistData()
+        // TODO this won't work all the time lol
+        updatePlaylistData(location.href)
       }
       if (playlistIsUpdating) {
         return playlistPromise

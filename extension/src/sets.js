@@ -2,26 +2,62 @@
 
 let isCollaborative = false
 
-function ctaButtonClickHandler () {
+// Listen for data refresh messages
+port.onMessage.addListener(msg => {
+  if (msg.type === 'refresh') {
+    if (msg.name === 'playlist') {
+      updatePlaylistData(location.href).then(playlistData => {
+        const reject = setTimeout(() => { throw new Error('Timeout') }, 10000)
+        port.onMessage.addListener(msg => {
+          if (msg.type == 'isCollaborativeResponse') {
+            clearTimeout(reject)
+            return isCollaborative = msg.isCollaborative
+          }
+        })
+        port.postMessage({
+          type: 'isCollaborativeRequest',
+          playlistId: playlistData.id
+        })
+      })
+    }
+  }
+})
+
+function ctaButtonClickHandler (e) {
   getPlaylistData().then(playlistData => {
-    console.log('saved')
-    console.log(playlistData)
     port.postMessage({
-      type: 'mark-collaborative',
+      type: 'markCollaborative',
       playlistId: playlistData.id
     })
+    e.target.classList.add('sc-pending')
+    e.target.innerHTML = 'Saving'
+    e.target.disabled = 'disabled'
     setTimeout(() => {
+      e.target.classList.remove('sc-pending')
+      e.target.innerHTML = 'Save Changes'
       const closeButton = document.querySelector('.modal__closeButton')
       if (closeButton) {
         closeButton.click()
       }
-    }, 950)
+    }, 750)
   })
 }
 
 const observer = new MutationObserver(mutations => {
   mutations.forEach(mutation => {
     mutation.addedNodes.forEach(node => {
+      // Modal added to DOM
+      if (node.classList.contains('modal') && node.innerHTML.includes('Playlist type')) {
+        if (isCollaborative) {
+          const button = node.querySelector('.baseFields__playlistTypeSelect button.sc-button-dropdown')
+          const labels = button.querySelectorAll('span span')
+          for (let i = 0; i < labels.length; i++) {
+            labels[i].textContent = 'Collaborative Playlist'
+          }
+        }
+      }
+
+      // Dropdown menu for playlist type added to DOM
       if (node.classList.contains('dropdownMenu') && node.innerHTML.includes('Playlist') && node.innerHTML.includes('EP')) {
         const list = node.querySelector('ul')
         const newItem = document.createElement('li')

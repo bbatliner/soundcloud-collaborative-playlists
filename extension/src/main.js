@@ -10,15 +10,6 @@ port.onMessage.addListener(msg => {
   }
 })
 
-// Listen for data refresh messages
-port.onMessage.addListener(msg => {
-  if (msg.type === 'refresh') {
-    if (msg.name === 'playlist') {
-      updatePlaylistData(location.href)
-    }
-  }
-})
-
 // Exchange UID for a JWT to sign-in to Firebase with
 getUserData()
   .then(userData => {
