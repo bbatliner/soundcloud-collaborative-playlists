@@ -5,19 +5,17 @@ let isCollaborative = false
 // Listen for data refresh messages
 port.onMessage.addListener(msg => {
   if (msg.type === 'refresh' && msg.name === 'playlist' && location.href.match(/https:\/\/soundcloud\.com\/.+\/sets\/.+/)) {
-    updatePlaylistData(location.href).then(playlistData => {
-      const reject = setTimeout(() => { throw new Error('Timeout') }, 10000)
-      port.onMessage.addListener(msg => {
-        if (msg.type == 'isCollaborativeResponse') {
-          clearTimeout(reject)
-          return isCollaborative = msg.isCollaborative
+    updatePlaylistData(location.href)
+      .then(playlistData => {
+        const data = {
+          type: 'isCollaborativeRequest',
+          playlistId: playlistData.id
         }
+        return postMessage(port, data, 'isCollaborativeResponse')
       })
-      port.postMessage({
-        type: 'isCollaborativeRequest',
-        playlistId: playlistData.id
+      .then(response => {
+        isCollaborative = response.isCollaborative
       })
-    })
   }
 })
 
@@ -54,11 +52,67 @@ const observer = new MutationObserver(mutations => {
       // Modal added to DOM
       if (node.classList.contains('modal') && node.innerHTML.includes('Playlist type')) {
         if (isCollaborative) {
+          // Set active playlist type to Collaborative Playlist
           const button = node.querySelector('.baseFields__playlistTypeSelect button.sc-button-dropdown')
           const labels = button.querySelectorAll('span span')
           for (let i = 0; i < labels.length; i++) {
             labels[i].textContent = 'Collaborative Playlist'
           }
+
+          // Add tab for Collaborators
+          const ul = node.querySelector('.g-tabs')
+          const li = document.createElement('li')
+          li.classList = 'g-tabs-item'
+          li.addEventListener('click', doNothing)
+          const a = document.createElement('a')
+          a.classList = 'g-tabs-link'
+          a.href = ''
+          a.textContent = 'Collaborators'
+          li.appendChild(a)
+          ul.appendChild(li)
+
+          // Add tab content for Collaborators
+          const contentContainer = node.querySelector('.tabs__content')
+          const content = document.createElement('div')
+          content.classList = 'tabs__contentSlot'
+          content.style = 'display: none;'
+          const tab = document.createElement('div')
+          tab.style = 'margin-top: 25px'
+          const input = stringToDom([
+            '<div class="textfield">',
+              '<label for="scFormControl">',
+                '<span class="textfield__label">Add collaborator</span>',
+              '</label>',
+              '<div class="textfield__inputWrapper">',
+                '<input class="textfield__input sc-input sc-input-medium" id="scFormControl" type="text">',
+              '</div>',
+            '</div>'
+          ].join(''))
+          tab.appendChild(input)
+          content.appendChild(tab)
+          contentContainer.appendChild(content)
+
+          // Hook up tab to toggle content
+          Array.from(node.querySelectorAll('.g-tabs-item')).forEach((tabItem, tabIndex) => {
+            tabItem.addEventListener('click', () => {
+              // Set this link to active
+              Array.from(node.querySelectorAll('.g-tabs-link')).forEach(link => {
+                if (link.parentNode === tabItem) {
+                  link.classList.add('active')
+                } else {
+                  link.classList.remove('active')
+                }
+              })
+              // Show the correct tab content
+              Array.from(node.querySelectorAll('.tabs__contentSlot')).forEach((tabContent, contentIndex) => {
+                if (tabIndex === contentIndex) {
+                  tabContent.style.display = 'block'
+                } else {
+                  tabContent.style.display = 'none'
+                }
+              })
+            })
+          })
         }
       }
 
@@ -73,9 +127,8 @@ const observer = new MutationObserver(mutations => {
         newLink.textContent = 'Collaborative Playlist'
         const ctaButton = document.querySelector('.audibleEditForm__formButtons .sc-button-cta')
         ctaButton.addEventListener('click', ctaButtonClickHandler)
+        newItem.addEventListener('click', doNothing)
         newItem.addEventListener('click', (e) => {
-          e.preventDefault()
-          e.stopPropagation()
           isCollaborative = true
           const menu = document.querySelector('.dropdownMenu')
           menu.parentNode.removeChild(menu)
