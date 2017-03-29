@@ -4,22 +4,20 @@ let isCollaborative = false
 
 // Listen for data refresh messages
 port.onMessage.addListener(msg => {
-  if (msg.type === 'refresh') {
-    if (msg.name === 'playlist') {
-      updatePlaylistData(location.href).then(playlistData => {
-        const reject = setTimeout(() => { throw new Error('Timeout') }, 10000)
-        port.onMessage.addListener(msg => {
-          if (msg.type == 'isCollaborativeResponse') {
-            clearTimeout(reject)
-            return isCollaborative = msg.isCollaborative
-          }
-        })
-        port.postMessage({
-          type: 'isCollaborativeRequest',
-          playlistId: playlistData.id
-        })
+  if (msg.type === 'refresh' && msg.name === 'playlist' && location.href.match(/https:\/\/soundcloud\.com\/.+\/sets\/.+/)) {
+    updatePlaylistData(location.href).then(playlistData => {
+      const reject = setTimeout(() => { throw new Error('Timeout') }, 10000)
+      port.onMessage.addListener(msg => {
+        if (msg.type == 'isCollaborativeResponse') {
+          clearTimeout(reject)
+          return isCollaborative = msg.isCollaborative
+        }
       })
-    }
+      port.postMessage({
+        type: 'isCollaborativeRequest',
+        playlistId: playlistData.id
+      })
+    })
   }
 })
 

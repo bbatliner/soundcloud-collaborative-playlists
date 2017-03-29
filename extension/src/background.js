@@ -20,7 +20,7 @@ chrome.extension.onConnect.addListener(port => {
       if (!tab.url) {
         return
       }
-      if (tab.url.match(/https:\/\/soundcloud\.com\/.+\/sets\/.+/)) {
+      if (tab.url.match(/https:\/\/soundcloud\.com\/.+\/sets\/.+/) && (changeInfo.status === 'completed' || changeInfo.status === 'complete')) {
         port.postMessage({ type: 'refresh', name: 'playlist' })
       }
     })
