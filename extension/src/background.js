@@ -41,9 +41,7 @@ chrome.extension.onConnect.addListener(port => {
       }
 
       if (msg.type === 'markCollaborative') {
-        firebase.database().ref(`collaborativePlaylists/${msg.playlistId}`).once('value', (snapshot) => {
-            snapshot.ref.set(true)
-        })
+        firebase.database().ref(`collaborativePlaylists/${msg.playlistId}`).set(true)
         return
       }
 
@@ -61,6 +59,26 @@ chrome.extension.onConnect.addListener(port => {
           port.postMessage({
             type: 'isCollaborativeResponse',
             isCollaborative: snapshot.val()
+          })
+        })
+        return
+      }
+
+      if (msg.type === 'grantEditPermissions') {
+        firebase.database().ref(`editPermissions/${msg.playlistId}/${msg.userId}`).once('value', (snapshot) => {
+          const response = {
+            type: 'grantEditPermissionsResponse'
+          }
+          if (snapshot.exists() && snapshot.val()) {
+            response.error = 'Collaborator already added!'
+            return port.postMessage(response)
+          }
+
+          return snapshot.ref.set(true, (err) => {
+            if (err) {
+              response.error = err.message
+            }
+            port.postMessage(response)
           })
         })
         return

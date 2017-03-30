@@ -81,28 +81,69 @@ const observer = new MutationObserver(mutations => {
           const tab = document.createElement('div')
           tab.style = 'margin-top: 25px'
           const input = stringToDom([
-            '<div class="textfield">',
+            '<div><div class="textfield" id="scCollaboratorTextfield">',
               '<label for="scCollaboratorInput">',
                 '<span class="textfield__label">Add collaborator</span>',
               '</label>',
               '<div class="textfield__inputWrapper">',
-                '<input class="textfield__input sc-input sc-input-medium" id="scCollaboratorInput" type="text" style="width: calc(100% - 48px)">',
-                '<button class="sc-button sc-button-medium sc-button-responsive permalinkTextfield__editButton" id="scCollaboratorButton">Add</button>',
+                '<input class="textfield__input sc-input sc-input-medium" id="scCollaboratorInput" type="text">',
               '</div>',
-            '</div>'
+            '</div>',
+            '<button class="sc-button sc-button-medium sc-button-responsive" id="scCollaboratorButton">Add</button></div>'
           ].join(''))
           tab.appendChild(input)
 
+          const textfield = tab.querySelector('#scCollaboratorTextfield')
           const addButton = tab.querySelector('#scCollaboratorButton')
           const collaboratorInput = tab.querySelector('#scCollaboratorInput')
+
+          const handleError = (message) => {
+            textfield.classList.add('invalid')
+            if (!collaboratorInput.parentNode.querySelector('.textfield__validation')) {
+              collaboratorInput.parentNode.appendChild(stringToDom(
+                `<div class="textfield__validation g-input-validation">${message}</div>`
+              ))
+            }
+            const removeError = () => {
+              addButton.removeEventListener('input', removeError)
+              collaboratorInput.removeEventListener('input', removeError)
+              textfield.classList.remove('invalid')
+              const validation = collaboratorInput.parentNode.querySelector('.textfield__validation')
+              if (validation) {
+                collaboratorInput.parentNode.removeChild(validation)
+              }
+            }
+            addButton.addEventListener('click', removeError)
+            collaboratorInput.addEventListener('input', removeError)
+          }
+
           const addHandler = () => {
             if (!collaboratorInput.value || collaboratorInput.value.length === 0) {
               return
             }
-            getAnyUserData(collaboratorInput.value).then(data => {
-              console.log(data)
+            getAnyUserData(collaboratorInput.value).then(userData => {
+              return getPlaylistData().then(playlistData => {
+                const data = {
+                  type: 'grantEditPermissions',
+                  playlistId: playlistData.id,
+                  userId: userData.id
+                }
+                return postMessage(port, data, 'grantEditPermissionsResponse')
+              })
+            }).then(response => {
+              if (response.error) {
+                return handleError(response.error)
+              }
+              console.log('SUCCESSFULLY ADDED')
+            }).catch(err => {
+              if (err.response && err.response.status === 404) {
+                handleError('Enter a valid user permalink.')
+              } else {
+                handleError('Something went wrong.')
+              }
             })
           }
+
           addButton.addEventListener('click', addHandler)
           collaboratorInput.addEventListener('keypress', (e) => {
             if (e.keyCode === 13 || e.which === 13) {
