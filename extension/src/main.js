@@ -10,26 +10,32 @@ port.onMessage.addListener(msg => {
   }
 })
 
-// Exchange UID for a JWT to sign-in to Firebase with
-getUserData()
-  .then(userData => {
-    // Sign-in listener to update profile
-    port.onMessage.addListener(msg => {
-      if (msg.type === 'login') {
-        port.postMessage({ type: 'profile', profile: {
-          displayName: userData.username,
-          photoURL: userData.avatar_url.replace('large.jpg', 't500x500.jpg')
-        }})
-      }
+function main () {
+  // Exchange UID for a JWT to sign-in to Firebase with
+  getUserData()
+    .then(userData => {
+      // Sign-in listener to update profile
+      port.onMessage.addListener(msg => {
+        if (msg.type === 'login') {
+          port.postMessage({ type: 'profile', profile: {
+            displayName: userData.username,
+            photoURL: userData.avatar_url.replace('large.jpg', 't500x500.jpg')
+          }})
+        }
+      })
+      return userData
     })
-    return userData
-  })
-  .then(userData => fetch(`https://localhost:3000/exchange?uid=${userData.id}`))
-  .then(checkStatus)
-  .then(response => response.text())
-  .then(jwt => {
-    port.postMessage({ type: 'customToken', token: jwt })
-  })
-  .catch(err => {
-    console.error(err)
-  })
+    .then(userData => fetch(`https://localhost:3000/exchange?uid=${userData.id}`))
+    .then(checkStatus)
+    .then(response => response.text())
+    .then(jwt => {
+      port.postMessage({ type: 'customToken', token: jwt })
+    })
+    .catch(err => {
+      console.error(err)
+    })
+}
+
+window.onload = () => {
+  main()
+}

@@ -25,6 +25,12 @@ function postMessage (port, data, responseType, timeout = 10000) {
   })
 }
 
+function getAnyUserData (userId) {
+  return fetch(`https://api.soundcloud.com/resolve.json?url=https://soundcloud.com/${userId}&client_id=z8LRYFPM4UK5MMLaBe9vixfph5kqNA25`)
+    .then(checkStatus)
+    .then(response => response.json())
+}
+
 const { updateUserData, getUserData } = (function () {
   let user = {}
   let userIsUpdating = false
@@ -33,8 +39,9 @@ const { updateUserData, getUserData } = (function () {
   return {
     updateUserData () {
       userIsUpdating = true
-      const username = document.querySelector('.userNav__username').textContent
-      userPromise = fetch(`https://api.soundcloud.com/resolve.json?url=https://soundcloud.com/${username}&client_id=z8LRYFPM4UK5MMLaBe9vixfph5kqNA25`)
+      const href = document.querySelector('.userNav__usernameButton').href
+      const userId = href.substring(href.lastIndexOf('/') + 1)
+      userPromise = fetch(`https://api.soundcloud.com/resolve.json?url=https://soundcloud.com/${userId}&client_id=z8LRYFPM4UK5MMLaBe9vixfph5kqNA25`)
         .then(checkStatus)
         .then(response => response.json())
         .then(userData => {

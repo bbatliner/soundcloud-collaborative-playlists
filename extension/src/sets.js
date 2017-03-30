@@ -2,6 +2,8 @@
 
 let isCollaborative = false
 
+// TODO: figure out a promise based solution for isCollaborative
+
 // Listen for data refresh messages
 port.onMessage.addListener(msg => {
   if (msg.type === 'refresh' && msg.name === 'playlist' && location.href.match(/https:\/\/soundcloud\.com\/.+\/sets\/.+/)) {
@@ -80,15 +82,58 @@ const observer = new MutationObserver(mutations => {
           tab.style = 'margin-top: 25px'
           const input = stringToDom([
             '<div class="textfield">',
-              '<label for="scFormControl">',
+              '<label for="scCollaboratorInput">',
                 '<span class="textfield__label">Add collaborator</span>',
               '</label>',
               '<div class="textfield__inputWrapper">',
-                '<input class="textfield__input sc-input sc-input-medium" id="scFormControl" type="text">',
+                '<input class="textfield__input sc-input sc-input-medium" id="scCollaboratorInput" type="text" style="width: calc(100% - 48px)">',
+                '<button class="sc-button sc-button-medium sc-button-responsive permalinkTextfield__editButton" id="scCollaboratorButton">Add</button>',
               '</div>',
             '</div>'
           ].join(''))
           tab.appendChild(input)
+
+          const addButton = tab.querySelector('#scCollaboratorButton')
+          const collaboratorInput = tab.querySelector('#scCollaboratorInput')
+          const addHandler = () => {
+            if (!collaboratorInput.value || collaboratorInput.value.length === 0) {
+              return
+            }
+            getAnyUserData(collaboratorInput.value).then(data => {
+              console.log(data)
+            })
+          }
+          addButton.addEventListener('click', addHandler)
+          collaboratorInput.addEventListener('keypress', (e) => {
+            if (e.keyCode === 13 || e.which === 13) {
+              addHandler()
+            }
+          })
+
+// HTML for List Item (for collaborators)
+//          <li class="editTrackList__item sc-border-light-bottom" draggable="true" style="display: list-item;">
+//            <div class="editTrackItem sc-type-small">
+//              <div class="editTrackItem__image sc-media-image">
+//                <div class="image m-sound image__lightOutline readOnly customImage sc-artwork sc-artwork-placeholder-10 m-loaded" style="height: 30px; width: 30px;"><span style="background-image: url(&quot;https://i1.sndcdn.com/artworks-000208884139-5p21bl-t50x50.jpg&quot;); width: 30px; height: 30px; opacity: 1;" class="sc-artwork sc-artwork-placeholder-10  image__full g-opacity-transition" aria-label="Unlike Pluto - Worst In Me" aria-role="img"></span>
+//                </div>
+//                <div class="editTrackItem__play">
+//                  <button class="sc-button-play playButton sc-button sc-button-small" tabindex="0" title="Play">Play</button>
+//                </div>
+//              </div>
+//              <div class="editTrackItem__content sc-media-content sc-truncate">
+//                <span class="sc-link-light">Lowly Palace</span> — <span class="editTrackItem__trackTitle sc-type-h3">Unlike Pluto - Worst In Me</span>
+//              </div>
+//              <div class="editTrackItem__additional">
+//                <span class="editTrackItem__duration">
+//                  <span class="sc-visuallyhidden">Duration: 3 minutes 17 seconds</span><span aria-hidden="true">3:17</span>
+//                </span>
+//                <button class="editTrackItem__remove g-button-remove" title="Remove track from playlist">
+//                  Remove track from playlist
+//                </button>
+//              </div>
+//            </div>
+//          </li>
+
           content.appendChild(tab)
           contentContainer.appendChild(content)
 
