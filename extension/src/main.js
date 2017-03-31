@@ -25,7 +25,7 @@ function main () {
       })
       return userData
     })
-    .then(userData => fetch(`https://localhost:3000/exchange?uid=${userData.id}`))
+    .then(userData => fetch(`https://us-central1-collaborative-playlists.cloudfunctions.net/exchange?uid=${userData.id}`))
     .then(checkStatus)
     .then(response => response.text())
     .then(jwt => {
