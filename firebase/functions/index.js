@@ -42,5 +42,3 @@ exports.exchange = functions.https.onRequest((req, res) => {
 //         }
 //     });
 // })
-
-

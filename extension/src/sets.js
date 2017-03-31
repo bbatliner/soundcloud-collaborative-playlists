@@ -21,33 +21,6 @@ port.onMessage.addListener(msg => {
   }
 })
 
-function ctaButtonClickHandler (e) {
-  getPlaylistData().then(playlistData => {
-    if (isCollaborative) {
-      port.postMessage({
-        type: 'markCollaborative',
-        playlistId: playlistData.id
-      })
-      e.target.classList.add('sc-pending')
-      e.target.innerHTML = 'Saving'
-      e.target.disabled = 'disabled'
-      setTimeout(() => {
-        e.target.classList.remove('sc-pending')
-        e.target.innerHTML = 'Save Changes'
-        const closeButton = document.querySelector('.modal__closeButton')
-        if (closeButton) {
-          closeButton.click()
-        }
-      }, 750)
-    } else {
-      port.postMessage({
-        type: 'unmarkCollaborative',
-        playlistId: playlistData.id
-      })
-    }
-  })
-}
-
 const observer = new MutationObserver(mutations => {
   mutations.forEach(mutation => {
     mutation.addedNodes.forEach(node => {
@@ -74,12 +47,18 @@ const observer = new MutationObserver(mutations => {
           ul.appendChild(li)
 
           // Add tab content for Collaborators
+
+          // Tab structure
           const contentContainer = node.querySelector('.tabs__content')
           const content = document.createElement('div')
           content.classList = 'tabs__contentSlot'
           content.style = 'display: none;'
           const tab = document.createElement('div')
           tab.style = 'margin-top: 25px'
+          content.appendChild(tab)
+          contentContainer.appendChild(content)
+
+          // "Add Collaborator" input
           const input = stringToDom([
             '<div><div class="textfield" id="scCollaboratorTextfield">',
               '<label for="scCollaboratorInput">',
@@ -150,6 +129,8 @@ const observer = new MutationObserver(mutations => {
             }
           })
 
+          // Collaborator list
+
 // HTML for List Item (for collaborators)
 //          <li class="editTrackList__item sc-border-light-bottom" draggable="true" style="display: list-item;">
 //            <div class="editTrackItem sc-type-small">
@@ -174,10 +155,7 @@ const observer = new MutationObserver(mutations => {
 //            </div>
 //          </li>
 
-          content.appendChild(tab)
-          contentContainer.appendChild(content)
-
-          // Hook up tab to toggle content
+          // Do tab switching entirely on our own, because adding a new tab breaks Soundcloud's switching
           Array.from(node.querySelectorAll('.g-tabs-item')).forEach((tabItem, tabIndex) => {
             tabItem.addEventListener('click', () => {
               // Set this link to active
@@ -203,6 +181,7 @@ const observer = new MutationObserver(mutations => {
 
       // Dropdown menu for playlist type added to DOM
       if (node.classList.contains('dropdownMenu') && node.innerHTML.includes('Playlist') && node.innerHTML.includes('EP')) {
+        // Dropdown structure
         const list = node.querySelector('ul')
         const newItem = document.createElement('li')
         newItem.classList = 'linkMenu__item sc-type-small'
@@ -210,8 +189,14 @@ const observer = new MutationObserver(mutations => {
         newLink.classList = 'sc-link-dark sc-truncate g-block'
         newLink.href = ''
         newLink.textContent = 'Collaborative Playlist'
-        const ctaButton = document.querySelector('.audibleEditForm__formButtons .sc-button-cta')
-        ctaButton.addEventListener('click', ctaButtonClickHandler)
+        newItem.appendChild(newLink)
+        if (isCollaborative) {
+          newItem.classList.add('linkMenu__activeItem')
+          list.querySelector('.linkMenu__activeItem').classList.remove('linkMenu__activeItem')
+        }
+        list.insertBefore(newItem, list.children[1])
+
+        // "Collaborative Playlist" list item events
         newItem.addEventListener('click', doNothing)
         newItem.addEventListener('click', (e) => {
           isCollaborative = true
@@ -223,7 +208,12 @@ const observer = new MutationObserver(mutations => {
           }
           ctaButton.removeAttribute('disabled')
         })
+
+        // Set the label back to a normal option when it's selected (not Collaborative Playlist)
         Array.from(list.querySelectorAll('li')).forEach(li => {
+          if (li.textContent === 'Collaborative Playlist') {
+            return
+          }
           li.addEventListener('click', () => {
             isCollaborative = false
             const labelsParent = document.querySelector('.baseFields__playlistTypeSelect .sc-button-alt-labels')
@@ -232,12 +222,35 @@ const observer = new MutationObserver(mutations => {
             }
           })
         })
-        newItem.appendChild(newLink)
-        if (isCollaborative) {
-          newItem.classList.add('linkMenu__activeItem')
-          list.querySelector('.linkMenu__activeItem').classList.remove('linkMenu__activeItem')
-        }
-        list.insertBefore(newItem, list.children[1])
+
+        // "Save Changes" override
+        const ctaButton = document.querySelector('.audibleEditForm__formButtons .sc-button-cta')
+        ctaButton.addEventListener('click', function ctaButtonClickHandler (e) {
+          getPlaylistData().then(playlistData => {
+            if (isCollaborative) {
+              port.postMessage({
+                type: 'markCollaborative',
+                playlistId: playlistData.id
+              })
+              e.target.classList.add('sc-pending')
+              e.target.innerHTML = 'Saving'
+              e.target.disabled = 'disabled'
+              setTimeout(() => {
+                e.target.classList.remove('sc-pending')
+                e.target.innerHTML = 'Save Changes'
+                const closeButton = document.querySelector('.modal__closeButton')
+                if (closeButton) {
+                  closeButton.click()
+                }
+              }, 750)
+            } else {
+              port.postMessage({
+                type: 'unmarkCollaborative',
+                playlistId: playlistData.id
+              })
+            }
+          })
+        })
       }
     })
   })
