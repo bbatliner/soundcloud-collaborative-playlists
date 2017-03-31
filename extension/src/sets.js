@@ -3,6 +3,7 @@
 let isCollaborative = false
 
 // TODO: figure out a promise based solution for isCollaborative
+// TODO: or perhaps an event based solution
 
 // Listen for data refresh messages
 port.onMessage.addListener(msg => {
@@ -58,6 +59,13 @@ const observer = new MutationObserver(mutations => {
           content.appendChild(tab)
           contentContainer.appendChild(content)
 
+          // Collaborator list
+          const list = stringToDom('<ul class="editTrackList__list sc-clearfix sc-list-nostyle"></ul>')
+          tab.appendChild(list)
+
+          // Inject some dank CSS
+          document.head.appendChild(stringToDom('<style>.editTrackList__list:not(:empty) { margin-bottom: 15px }</style>'))
+
           // "Add Collaborator" input
           const input = stringToDom([
             '<div><div class="textfield" id="scCollaboratorTextfield">',
@@ -100,18 +108,22 @@ const observer = new MutationObserver(mutations => {
             if (!collaboratorInput.value || collaboratorInput.value.length === 0) {
               return
             }
-            Promise.all([getAnyUserData(collaboratorInput.value), getPlaylistData()])
-              .then(([userData, playlistData]) => {
-                const data = {
-                  type: 'grantEditPermissions',
-                  playlistId: playlistData.id,
-                  userId: userData.id
-                }
-                return postMessage(port, data, 'grantEditPermissionsResponse')
-              })
-              .then(response => {
+            const a = getAnyUserData(collaboratorInput.value)
+            const b = getPlaylistData()
+            const c = Promise.all([a, b]).then(([userData, playlistData]) => {
+              const data = {
+                type: 'grantEditPermissions',
+                playlistId: playlistData.id,
+                userId: userData.id
+              }
+              return postMessage(port, data, 'grantEditPermissionsResponse')
+            })
+            Promise.all([a, b, c])
+              .then(([userData, playlistData, response]) => {
                 console.log('SUCCESSFULLY ADDED')
-              }).catch(err => {
+                list.appendChild(createCollaboratorListItem(userData))
+              })
+              .catch(err => {
                 if (err.response && err.response.status === 404) {
                   handleError('Enter a valid user permalink.')
                 } else if (err.message) {
@@ -129,31 +141,26 @@ const observer = new MutationObserver(mutations => {
             }
           })
 
-          // Collaborator list
-
-// HTML for List Item (for collaborators)
-//          <li class="editTrackList__item sc-border-light-bottom" draggable="true" style="display: list-item;">
-//            <div class="editTrackItem sc-type-small">
-//              <div class="editTrackItem__image sc-media-image">
-//                <div class="image m-sound image__lightOutline readOnly customImage sc-artwork sc-artwork-placeholder-10 m-loaded" style="height: 30px; width: 30px;"><span style="background-image: url(&quot;https://i1.sndcdn.com/artworks-000208884139-5p21bl-t50x50.jpg&quot;); width: 30px; height: 30px; opacity: 1;" class="sc-artwork sc-artwork-placeholder-10  image__full g-opacity-transition" aria-label="Unlike Pluto - Worst In Me" aria-role="img"></span>
-//                </div>
-//                <div class="editTrackItem__play">
-//                  <button class="sc-button-play playButton sc-button sc-button-small" tabindex="0" title="Play">Play</button>
-//                </div>
-//              </div>
-//              <div class="editTrackItem__content sc-media-content sc-truncate">
-//                <span class="sc-link-light">Lowly Palace</span> — <span class="editTrackItem__trackTitle sc-type-h3">Unlike Pluto - Worst In Me</span>
-//              </div>
-//              <div class="editTrackItem__additional">
-//                <span class="editTrackItem__duration">
-//                  <span class="sc-visuallyhidden">Duration: 3 minutes 17 seconds</span><span aria-hidden="true">3:17</span>
-//                </span>
-//                <button class="editTrackItem__remove g-button-remove" title="Remove track from playlist">
-//                  Remove track from playlist
-//                </button>
-//              </div>
-//            </div>
-//          </li>
+          function createCollaboratorListItem (userData) {
+            return stringToDom([
+              '<li class="editTrackList__item sc-border-light-bottom" style="display: list-item;">',
+                '<div class="editTrackItem sc-type-small">',
+                  '<div class="editTrackItem__image sc-media-image">',
+                    `<div class="image m-sound image__lightOutline readOnly customImage sc-artwork sc-artwork-placeholder-10 m-loaded" style="height: 30px; width: 30px;"><span style="background-image: url(&quot;${userData.avatar_url}&quot;); width: 30px; height: 30px; opacity: 1;" class="sc-artwork sc-artwork-placeholder-10 image__full g-opacity-transition"></span>`,
+                    '</div>',
+                  '</div>',
+                  '<div class="sc-media-content sc-truncate">',
+                    `<span class="sc-link-light">${userData.full_name}</span>`,
+                  '</div>',
+                  '<div class="editTrackItem__additional">',
+                    '<button class="editTrackItem__remove g-button-remove" title="Revoke collaborator access">',
+                      'Revoke collaborator access',
+                    '</button>',
+                  '</div>',
+                '</div>',
+              '</li>'
+            ].join(''))
+          }
 
           // Do tab switching entirely on our own, because adding a new tab breaks Soundcloud's switching
           Array.from(node.querySelectorAll('.g-tabs-item')).forEach((tabItem, tabIndex) => {
