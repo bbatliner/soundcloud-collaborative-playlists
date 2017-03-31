@@ -121,8 +121,8 @@ const observer = new MutationObserver(mutations => {
             if (!collaboratorInput.value || collaboratorInput.value.length === 0) {
               return
             }
-            getAnyUserData(collaboratorInput.value).then(userData => {
-              return getPlaylistData().then(playlistData => {
+            Promise.all([getAnyUserData(collaboratorInput.value), getPlaylistData()])
+              .then(([userData, playlistData]) => {
                 const data = {
                   type: 'grantEditPermissions',
                   playlistId: playlistData.id,
@@ -130,18 +130,17 @@ const observer = new MutationObserver(mutations => {
                 }
                 return postMessage(port, data, 'grantEditPermissionsResponse')
               })
-            }).then(response => {
-              if (response.error) {
-                return handleError(response.error)
-              }
-              console.log('SUCCESSFULLY ADDED')
-            }).catch(err => {
-              if (err.response && err.response.status === 404) {
-                handleError('Enter a valid user permalink.')
-              } else {
-                handleError('Something went wrong.')
-              }
-            })
+              .then(response => {
+                console.log('SUCCESSFULLY ADDED')
+              }).catch(err => {
+                if (err.response && err.response.status === 404) {
+                  handleError('Enter a valid user permalink.')
+                } else if (err.message) {
+                  handleError(err.message)
+                } else {
+                  handleError('Something went wrong.')
+                }
+              })
           }
 
           addButton.addEventListener('click', addHandler)

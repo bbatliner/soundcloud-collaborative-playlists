@@ -18,7 +18,10 @@ function postMessage (port, data, responseType, timeout = 10000) {
     port.onMessage.addListener(msg => {
       if (msg.type === responseType) {
         clearTimeout(rejectTimeout)
-        resolve(msg)
+        if (msg.error) {
+          return reject(new Error(msg.error))
+        }
+        return resolve(msg)
       }
     })
     port.postMessage(data)
@@ -41,9 +44,7 @@ const { updateUserData, getUserData } = (function () {
       userIsUpdating = true
       const href = document.querySelector('.userNav__usernameButton').href
       const userId = href.substring(href.lastIndexOf('/') + 1)
-      userPromise = fetch(`https://api.soundcloud.com/resolve.json?url=https://soundcloud.com/${userId}&client_id=z8LRYFPM4UK5MMLaBe9vixfph5kqNA25`)
-        .then(checkStatus)
-        .then(response => response.json())
+      userPromise = getAnyUserData(userId)
         .then(userData => {
           user = userData
           userIsUpdating = false
