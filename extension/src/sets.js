@@ -41,12 +41,13 @@ port.onMessage.addListener(msg => {
 
 // DOM helpers
 const ctaButtonSelector = '.audibleEditForm__formButtons .sc-button-cta'
+const cancelButtonSelector = '.audibleEditForm__formButtons .sc-button[title="Cancel"]'
 
 function getPlaylistArtworkUrl () {
   return document.head.querySelector('meta[property="twitter:image"]').content
 }
 
-function createCollaboratorListItem (userData) {
+function createCollaboratorListItem (userData, isNew) {
   const dom = stringToDom([
     '<li class="editTrackList__item sc-border-light-bottom" style="display: list-item;">',
       '<div class="editTrackItem sc-type-small">',
@@ -55,7 +56,7 @@ function createCollaboratorListItem (userData) {
           '</div>',
         '</div>',
         '<div class="sc-media-content sc-truncate">',
-          `<span class="sc-link-light">${userData.full_name}</span>`,
+          `<span class="sc-link-light" data-id="${userData.id}">${userData.full_name}</span>`,
         '</div>',
         '<div class="editTrackItem__additional">',
           '<button class="editTrackItem__remove g-button-remove" title="Revoke collaborator access">',
@@ -73,6 +74,15 @@ function createCollaboratorListItem (userData) {
       dom.parentNode.removeChild(dom)
     }
   })
+  if (isNew) {
+    const cancelButton = document.querySelector(cancelButtonSelector)
+    cancelButton.addEventListener('click', () => {
+      collaborators[userData.id] = false
+      if (dom.parentNode) {
+        dom.parentNode.removeChild(dom)
+      }
+    })
+  }
   return dom
 }
 
@@ -131,7 +141,7 @@ const observer = new MutationObserver(mutations => {
               })
             }
 
-            // TODO: Handle collaborators
+            // Handle collaborators
             if (isCollaborative) {
               port.postMessage({
                 type: 'saveCollaborators',
@@ -173,11 +183,23 @@ const observer = new MutationObserver(mutations => {
         contentContainer.appendChild(content)
 
         // Collaborator list
-        const list = stringToDom('<ul class="editTrackList__list sc-clearfix sc-list-nostyle"></ul>')
+        const list = stringToDom('<ul class="collaborators__list editTrackList__list sc-clearfix sc-list-nostyle"></ul>')
         Promise.all(
           Object.keys(collaborators).filter(key => collaborators[key] === true).map(getAnyUserDataById)
         ).then(userDataArr => {
+          // Clean data...
+          userDataArr.forEach(user => { user.full_name = user.full_name || user.username || user.permalink })
+          // Sort and add to DOM
           userDataArr
+            .sort((a, b) => {
+              // Sort lexicographically
+              const name = a.full_name.toLowerCase().localeCompare(b.full_name.toLowerCase())
+              if (name !== 0) {
+                return name
+              }
+              // And then by id
+              return a.id - b.id
+            })
             .map(createCollaboratorListItem)
             .forEach(listItem => list.appendChild(listItem))
         })
@@ -230,13 +252,34 @@ const observer = new MutationObserver(mutations => {
           }
           const a = getAnyUserData(collaboratorInput.value)
           const b = getPlaylistData()
-          Promise.all([a, b])
-            .then(([userData, playlistData]) => {
+          const c = getUserData()
+          Promise.all([a, b, c])
+            .then(([userData, playlistData, myUserData]) => {
               if (collaborators[userData.id] === true) {
                 throw new Error('Collaborator already added!')
               }
+              if (userData.id === myUserData.id) {
+                throw new Error('Collaborate with yourself? Impossible!')
+              }
               collaborators[userData.id] = true
-              list.appendChild(createCollaboratorListItem(userData))
+
+              // Find the correct index to insert the new collaborator
+              let indexToInsert
+              const selector = '.collaborators__list .editTrackItem .sc-link-light'
+              const existingCollaborators = Array.from(document.querySelectorAll(selector)).map(el => ({
+                id: parseInt(el.dataset.id, 10),
+                name: el.textContent
+              }))
+              userData.full_name = userData.full_name || userData.username || userData.permalink
+              const indexOfName = existingCollaborators.map(c => c.name).indexOf(userData.full_name)
+              if (indexOfName === -1) {
+                indexToInsert = [...existingCollaborators.map(c => c.name.toLowerCase()), userData.full_name.toLowerCase()].sort().indexOf(userData.full_name.toLowerCase())
+              } else {
+                indexToInsert = indexOfName + [...existingCollaborators.filter(c => c.name === userData.full_name).map(c => c.id), userData.id].sort((a, b) => a - b).indexOf(userData.id)
+              }
+              list.insertBefore(createCollaboratorListItem(userData, true), list.children[indexToInsert])
+
+              // Reset stuff
               document.querySelector(ctaButtonSelector).removeAttribute('disabled')
               collaboratorInput.value = ''
             })
