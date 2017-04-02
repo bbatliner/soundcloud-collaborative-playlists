@@ -24,6 +24,8 @@
         "https://soundcloud.com/*"
       ],
       "js": [
+        "vendor/jquery-2.2.4.min.js",
+        "vendor/jquery.gritter.min.js",
         "src/globals.js",
         "src/main.js",
         "src/sets.js"

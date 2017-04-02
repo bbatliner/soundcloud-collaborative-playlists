@@ -1,14 +1,18 @@
 'use strict'
 
-let isCollaborative = false
-
-// TODO: figure out a promise based solution for isCollaborative
+// TODO: figure out a promise based solution for these
 // TODO: or perhaps an event based solution
+let isCollaborative = false
+let collaborators = {}
 
 // Listen for data refresh messages
 port.onMessage.addListener(msg => {
   if (msg.type === 'refresh' && msg.name === 'playlist' && location.href.match(/https:\/\/soundcloud\.com\/.+\/sets\/.+/)) {
+    // Start the fetch for new data
     updatePlaylistData(location.href)
+
+    // Update isCollaborative
+    getPlaylistData()
       .then(playlistData => {
         const data = {
           type: 'isCollaborativeRequest',
@@ -19,14 +23,126 @@ port.onMessage.addListener(msg => {
       .then(response => {
         isCollaborative = response.isCollaborative
       })
+
+    // Update list of collaborators
+    getPlaylistData()
+      .then(playlistData => {
+          const data = {
+            type: 'collaboratorsRequest',
+            playlistId: playlistData.id
+          }
+          return postMessage(port, data, 'collaboratorsResponse')
+      })
+      .then(response => {
+        collaborators = response.collaborators || {}
+      })
   }
 })
+
+// DOM helpers
+const ctaButtonSelector = '.audibleEditForm__formButtons .sc-button-cta'
+
+function getPlaylistArtworkUrl () {
+  return document.head.querySelector('meta[property="twitter:image"]').content
+}
+
+function createCollaboratorListItem (userData) {
+  const dom = stringToDom([
+    '<li class="editTrackList__item sc-border-light-bottom" style="display: list-item;">',
+      '<div class="editTrackItem sc-type-small">',
+        '<div class="editTrackItem__image sc-media-image">',
+          `<div class="image m-sound image__lightOutline readOnly customImage sc-artwork sc-artwork-placeholder-10 m-loaded" style="height: 30px; width: 30px;"><span style="background-image: url(&quot;${userData.avatar_url}&quot;); width: 30px; height: 30px; opacity: 1;" class="sc-artwork sc-artwork-placeholder-10 image__full g-opacity-transition"></span>`,
+          '</div>',
+        '</div>',
+        '<div class="sc-media-content sc-truncate">',
+          `<span class="sc-link-light">${userData.full_name}</span>`,
+        '</div>',
+        '<div class="editTrackItem__additional">',
+          '<button class="editTrackItem__remove g-button-remove" title="Revoke collaborator access">',
+            'Revoke collaborator access',
+          '</button>',
+        '</div>',
+      '</div>',
+    '</li>'
+  ].join(''))
+  const removeButton = dom.querySelector('.g-button-remove')
+  removeButton.addEventListener('click', () => {
+    collaborators[userData.id] = false
+    document.querySelector(ctaButtonSelector).removeAttribute('disabled')
+    if (dom.parentNode) {
+      dom.parentNode.removeChild(dom)
+    }
+  })
+  return dom
+}
+
+function createGritter ({ text, image }) {
+  const id = $.gritter.add({
+    text,
+    image,
+    class_name: 'no-title'
+  })
+  document.getElementById(`gritter-item-${id}`).querySelector('.gritter-close').textContent = ''
+}
 
 const observer = new MutationObserver(mutations => {
   mutations.forEach(mutation => {
     mutation.addedNodes.forEach(node => {
       // Modal added to DOM
       if (node.classList.contains('modal') && node.innerHTML.includes('Playlist type')) {
+        // "Save Changes" override
+        const ctaButton = document.querySelector(ctaButtonSelector)
+        ctaButton.addEventListener('click', () => {
+          getPlaylistData().then(playlistData => {
+            // Controls the ctaButton state and styles to simulate a save
+            function save () {
+              ctaButton.classList.add('sc-pending')
+              ctaButton.innerHTML = 'Saving'
+              ctaButton.disabled = 'disabled'
+              setTimeout(() => {
+                ctaButton.classList.remove('sc-pending')
+                ctaButton.innerHTML = 'Save Changes'
+                const closeButton = document.querySelector('.modal__closeButton')
+                if (closeButton) {
+                  closeButton.click()
+                  if (!document.getElementById('gritter-notice-wrapper')) {
+                    createGritter({
+                      text: 'Your playlist has been updated successfully.',
+                      image: getPlaylistArtworkUrl().replace('500x500', '50x50')
+                    })
+                  }
+                } else {
+                  console.warn('Unable to close modal - close button not found.')
+                }
+              }, 750)
+            }
+
+            // Handle isCollaborative
+            if (isCollaborative) {
+              port.postMessage({
+                type: 'markCollaborative',
+                playlistId: playlistData.id
+              })
+              save()
+            } else {
+              port.postMessage({
+                type: 'unmarkCollaborative',
+                playlistId: playlistData.id
+              })
+            }
+
+            // TODO: Handle collaborators
+            if (isCollaborative) {
+              port.postMessage({
+                type: 'saveCollaborators',
+                playlistId: playlistData.id,
+                collaborators: collaborators
+              })
+              save()
+            }
+          })
+        })
+
         if (isCollaborative) {
           // Set active playlist type to Collaborative Playlist
           const button = node.querySelector('.baseFields__playlistTypeSelect button.sc-button-dropdown')
@@ -34,156 +150,135 @@ const observer = new MutationObserver(mutations => {
           for (let i = 0; i < labels.length; i++) {
             labels[i].textContent = 'Collaborative Playlist'
           }
-
-          // Add tab for Collaborators
-          const ul = node.querySelector('.g-tabs')
-          const li = document.createElement('li')
-          li.classList = 'g-tabs-item'
-          li.addEventListener('click', doNothing)
-          const a = document.createElement('a')
-          a.classList = 'g-tabs-link'
-          a.href = ''
-          a.textContent = 'Collaborators'
-          li.appendChild(a)
-          ul.appendChild(li)
-
-          // Add tab content for Collaborators
-
-          // Tab structure
-          const contentContainer = node.querySelector('.tabs__content')
-          const content = document.createElement('div')
-          content.classList = 'tabs__contentSlot'
-          content.style = 'display: none;'
-          const tab = document.createElement('div')
-          tab.style = 'margin-top: 25px'
-          content.appendChild(tab)
-          contentContainer.appendChild(content)
-
-          // Collaborator list
-          const list = stringToDom('<ul class="editTrackList__list sc-clearfix sc-list-nostyle"></ul>')
-          tab.appendChild(list)
-
-          // Inject some dank CSS
-          document.head.appendChild(stringToDom('<style>.editTrackList__list:not(:empty) { margin-bottom: 15px }</style>'))
-
-          // "Add Collaborator" input
-          const input = stringToDom([
-            '<div><div class="textfield" id="scCollaboratorTextfield">',
-              '<label for="scCollaboratorInput">',
-                '<span class="textfield__label">Add collaborator</span>',
-              '</label>',
-              '<div class="textfield__inputWrapper">',
-                '<input class="textfield__input sc-input sc-input-medium" id="scCollaboratorInput" type="text">',
-              '</div>',
-            '</div>',
-            '<button class="sc-button sc-button-medium sc-button-responsive" id="scCollaboratorButton">Add</button></div>'
-          ].join(''))
-          tab.appendChild(input)
-
-          const textfield = tab.querySelector('#scCollaboratorTextfield')
-          const addButton = tab.querySelector('#scCollaboratorButton')
-          const collaboratorInput = tab.querySelector('#scCollaboratorInput')
-
-          const handleError = (message) => {
-            textfield.classList.add('invalid')
-            if (!collaboratorInput.parentNode.querySelector('.textfield__validation')) {
-              collaboratorInput.parentNode.appendChild(stringToDom(
-                `<div class="textfield__validation g-input-validation">${message}</div>`
-              ))
-            }
-            const removeError = () => {
-              addButton.removeEventListener('input', removeError)
-              collaboratorInput.removeEventListener('input', removeError)
-              textfield.classList.remove('invalid')
-              const validation = collaboratorInput.parentNode.querySelector('.textfield__validation')
-              if (validation) {
-                collaboratorInput.parentNode.removeChild(validation)
-              }
-            }
-            addButton.addEventListener('click', removeError)
-            collaboratorInput.addEventListener('input', removeError)
-          }
-
-          const addHandler = () => {
-            if (!collaboratorInput.value || collaboratorInput.value.length === 0) {
-              return
-            }
-            const a = getAnyUserData(collaboratorInput.value)
-            const b = getPlaylistData()
-            const c = Promise.all([a, b]).then(([userData, playlistData]) => {
-              const data = {
-                type: 'grantEditPermissions',
-                playlistId: playlistData.id,
-                userId: userData.id
-              }
-              return postMessage(port, data, 'grantEditPermissionsResponse')
-            })
-            Promise.all([a, b, c])
-              .then(([userData, playlistData, response]) => {
-                console.log('SUCCESSFULLY ADDED')
-                list.appendChild(createCollaboratorListItem(userData))
-              })
-              .catch(err => {
-                if (err.response && err.response.status === 404) {
-                  handleError('Enter a valid user permalink.')
-                } else if (err.message) {
-                  handleError(err.message)
-                } else {
-                  handleError('Something went wrong.')
-                }
-              })
-          }
-
-          addButton.addEventListener('click', addHandler)
-          collaboratorInput.addEventListener('keypress', (e) => {
-            if (e.keyCode === 13 || e.which === 13) {
-              addHandler()
-            }
-          })
-
-          function createCollaboratorListItem (userData) {
-            return stringToDom([
-              '<li class="editTrackList__item sc-border-light-bottom" style="display: list-item;">',
-                '<div class="editTrackItem sc-type-small">',
-                  '<div class="editTrackItem__image sc-media-image">',
-                    `<div class="image m-sound image__lightOutline readOnly customImage sc-artwork sc-artwork-placeholder-10 m-loaded" style="height: 30px; width: 30px;"><span style="background-image: url(&quot;${userData.avatar_url}&quot;); width: 30px; height: 30px; opacity: 1;" class="sc-artwork sc-artwork-placeholder-10 image__full g-opacity-transition"></span>`,
-                    '</div>',
-                  '</div>',
-                  '<div class="sc-media-content sc-truncate">',
-                    `<span class="sc-link-light">${userData.full_name}</span>`,
-                  '</div>',
-                  '<div class="editTrackItem__additional">',
-                    '<button class="editTrackItem__remove g-button-remove" title="Revoke collaborator access">',
-                      'Revoke collaborator access',
-                    '</button>',
-                  '</div>',
-                '</div>',
-              '</li>'
-            ].join(''))
-          }
-
-          // Do tab switching entirely on our own, because adding a new tab breaks Soundcloud's switching
-          Array.from(node.querySelectorAll('.g-tabs-item')).forEach((tabItem, tabIndex) => {
-            tabItem.addEventListener('click', () => {
-              // Set this link to active
-              Array.from(node.querySelectorAll('.g-tabs-link')).forEach(link => {
-                if (link.parentNode === tabItem) {
-                  link.classList.add('active')
-                } else {
-                  link.classList.remove('active')
-                }
-              })
-              // Show the correct tab content
-              Array.from(node.querySelectorAll('.tabs__contentSlot')).forEach((tabContent, contentIndex) => {
-                if (tabIndex === contentIndex) {
-                  tabContent.style.display = 'block'
-                } else {
-                  tabContent.style.display = 'none'
-                }
-              })
-            })
-          })
         }
+
+        // Add tab for Collaborators
+        const ul = node.querySelector('.g-tabs')
+        const li = stringToDom('<li class="g-tabs-item" id="collaboratorsTabLi"></li>')
+        if (!isCollaborative) {
+          li.style.display = 'none'
+        }
+        li.addEventListener('click', doNothing)
+        const a = stringToDom('<a class="g-tabs-link" href>Collaborators</a>')
+        li.appendChild(a)
+        ul.appendChild(li)
+
+        // Add tab content for Collaborators
+
+        // Tab structure
+        const contentContainer = node.querySelector('.tabs__content')
+        const content = stringToDom('<div class="tabs__contentSlot" style="display: none;"></div>')
+        const tab = stringToDom('<div style="margin-top: 25px"></div>')
+        content.appendChild(tab)
+        contentContainer.appendChild(content)
+
+        // Collaborator list
+        const list = stringToDom('<ul class="editTrackList__list sc-clearfix sc-list-nostyle"></ul>')
+        Promise.all(
+          Object.keys(collaborators).filter(key => collaborators[key] === true).map(getAnyUserDataById)
+        ).then(userDataArr => {
+          userDataArr
+            .map(createCollaboratorListItem)
+            .forEach(listItem => list.appendChild(listItem))
+        })
+        tab.appendChild(list)
+
+        // Inject some dank CSS
+        document.head.appendChild(stringToDom('<style>.editTrackList__list:not(:empty) { margin-bottom: 15px }</style>'))
+
+        // "Add Collaborator" input
+        const input = stringToDom([
+          '<div><div class="textfield" id="scCollaboratorTextfield">',
+            '<label for="scCollaboratorInput">',
+              '<span class="textfield__label">Add collaborator</span>',
+            '</label>',
+            '<div class="textfield__inputWrapper">',
+              '<input class="textfield__input sc-input sc-input-medium" id="scCollaboratorInput" type="text">',
+            '</div>',
+          '</div>',
+          '<button class="sc-button sc-button-medium sc-button-responsive" id="scCollaboratorButton">Add</button></div>'
+        ].join(''))
+        tab.appendChild(input)
+
+        const textfield = tab.querySelector('#scCollaboratorTextfield')
+        const addButton = tab.querySelector('#scCollaboratorButton')
+        const collaboratorInput = tab.querySelector('#scCollaboratorInput')
+
+        const handleError = (message) => {
+          textfield.classList.add('invalid')
+          if (!collaboratorInput.parentNode.querySelector('.textfield__validation')) {
+            collaboratorInput.parentNode.appendChild(stringToDom(
+              `<div class="textfield__validation g-input-validation">${message}</div>`
+            ))
+          }
+          const removeError = () => {
+            addButton.removeEventListener('input', removeError)
+            collaboratorInput.removeEventListener('input', removeError)
+            textfield.classList.remove('invalid')
+            const validation = collaboratorInput.parentNode.querySelector('.textfield__validation')
+            if (validation) {
+              collaboratorInput.parentNode.removeChild(validation)
+            }
+          }
+          addButton.addEventListener('click', removeError)
+          collaboratorInput.addEventListener('input', removeError)
+        }
+
+        const addHandler = () => {
+          if (!collaboratorInput.value || collaboratorInput.value.length === 0) {
+            return
+          }
+          const a = getAnyUserData(collaboratorInput.value)
+          const b = getPlaylistData()
+          Promise.all([a, b])
+            .then(([userData, playlistData]) => {
+              if (collaborators[userData.id] === true) {
+                throw new Error('Collaborator already added!')
+              }
+              collaborators[userData.id] = true
+              list.appendChild(createCollaboratorListItem(userData))
+              document.querySelector(ctaButtonSelector).removeAttribute('disabled')
+              collaboratorInput.value = ''
+            })
+            .catch(err => {
+              if (err.response && err.response.status === 404) {
+                handleError('Enter a valid user permalink.')
+              } else if (err.message) {
+                handleError(err.message)
+              } else {
+                handleError('Something went wrong.')
+              }
+            })
+        }
+
+        addButton.addEventListener('click', addHandler)
+        collaboratorInput.addEventListener('keypress', (e) => {
+          if (e.keyCode === 13 || e.which === 13) {
+            addHandler()
+          }
+        })
+
+        // Do tab switching entirely on our own, because adding a new tab breaks Soundcloud's switching
+        Array.from(node.querySelectorAll('.g-tabs-item')).forEach((tabItem, tabIndex) => {
+          tabItem.addEventListener('click', () => {
+            // Set this link to active
+            Array.from(node.querySelectorAll('.g-tabs-link')).forEach(link => {
+              if (link.parentNode === tabItem) {
+                link.classList.add('active')
+              } else {
+                link.classList.remove('active')
+              }
+            })
+            // Show the correct tab content
+            Array.from(node.querySelectorAll('.tabs__contentSlot')).forEach((tabContent, contentIndex) => {
+              if (tabIndex === contentIndex) {
+                tabContent.style.display = 'block'
+              } else {
+                tabContent.style.display = 'none'
+              }
+            })
+          })
+        })
       }
 
       // Dropdown menu for playlist type added to DOM
@@ -207,13 +302,16 @@ const observer = new MutationObserver(mutations => {
         newItem.addEventListener('click', doNothing)
         newItem.addEventListener('click', (e) => {
           isCollaborative = true
+          // Show collaborators tab, if present
+          document.querySelector('#collaboratorsTabLi').style.display = ''
+          // Set menu labels to Collaborative Playlist
           const menu = document.querySelector('.dropdownMenu')
           menu.parentNode.removeChild(menu)
           const labelsParent = document.querySelector('.baseFields__playlistTypeSelect .sc-button-alt-labels')
           for (let i = 0; i < labelsParent.children.length; i++) {
             labelsParent.children[i].textContent = 'Collaborative Playlist'
           }
-          ctaButton.removeAttribute('disabled')
+          document.querySelector(ctaButtonSelector).removeAttribute('disabled')
         })
 
         // Set the label back to a normal option when it's selected (not Collaborative Playlist)
@@ -223,38 +321,12 @@ const observer = new MutationObserver(mutations => {
           }
           li.addEventListener('click', () => {
             isCollaborative = false
+            // Hide collaborators tab
+            document.querySelector('#collaboratorsTabLi').style.display = 'none'
+            // Set menu labels to the selected playlist type
             const labelsParent = document.querySelector('.baseFields__playlistTypeSelect .sc-button-alt-labels')
             for (let i = 0; i < labelsParent.children.length; i++) {
               labelsParent.children[i].textContent = li.firstElementChild.textContent
-            }
-          })
-        })
-
-        // "Save Changes" override
-        const ctaButton = document.querySelector('.audibleEditForm__formButtons .sc-button-cta')
-        ctaButton.addEventListener('click', function ctaButtonClickHandler (e) {
-          getPlaylistData().then(playlistData => {
-            if (isCollaborative) {
-              port.postMessage({
-                type: 'markCollaborative',
-                playlistId: playlistData.id
-              })
-              e.target.classList.add('sc-pending')
-              e.target.innerHTML = 'Saving'
-              e.target.disabled = 'disabled'
-              setTimeout(() => {
-                e.target.classList.remove('sc-pending')
-                e.target.innerHTML = 'Save Changes'
-                const closeButton = document.querySelector('.modal__closeButton')
-                if (closeButton) {
-                  closeButton.click()
-                }
-              }, 750)
-            } else {
-              port.postMessage({
-                type: 'unmarkCollaborative',
-                playlistId: playlistData.id
-              })
             }
           })
         })
