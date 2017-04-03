@@ -1,6 +1,21 @@
 const setRegex = /^https:\/\/soundcloud\.com\/[^\/]+\/sets\/[^\/]+$/
 const trackRegex = /^https:\/\/soundcloud\.com\/(?!you)[^\/]+\/[^\/]+(\?in=.*)?$/
 
+// https://davidwalsh.name/javascript-polling
+function poll (fn, interval = 100, timeout = 2000) {
+  const endTime = Date.now() + timeout
+  return new Promise(function checkCondition (resolve, reject) {
+    const result = fn()
+    if (result) {
+      return resolve(result)
+    }
+    if (Date.now() < endTime) {
+      return setTimeout(checkCondition, interval, resolve, reject);
+    }
+    return reject(new Error('Timed out.'))
+  })
+}
+
 function checkStatus (response) {
   if (response.status !== 200) {
     const error = new Error('Not OK')
@@ -31,7 +46,7 @@ function postMessage (port, data, responseType, timeout = 10000) {
   })
 }
 
-const onPushState = (function () {
+const onUrlChange = (function () {
   const myScript = document.createElement('script')
   myScript.innerHTML = `
     // http://felix-kling.de/blog/2011/01/06/how-to-detect-history-pushstate/
@@ -40,9 +55,12 @@ const onPushState = (function () {
       if (typeof history.onpushstate === 'function') {
         history.onpushstate({ state });
       }
-      window.postMessage({ type: 'pushState', state }, '*')
+      window.postMessage({ type: 'pushState' }, '*')
       return pushState.apply(history, arguments);
     }
+
+    // Also handle forward/back buttons
+    window.addEventListener('popstate', () => window.postMessage({ type: 'popstate' }, '*'))
   `
   document.head.appendChild(myScript)
 
@@ -51,12 +69,12 @@ const onPushState = (function () {
     if (event.source !== window) {
       return
     }
-    if (event.data.type === 'pushState') {
-      handlers.forEach(handler => handler({ state: event.data.state }))
+    if (event.data.type === 'pushState' || event.data.type === 'popstate') {
+      handlers.forEach(handler => handler())
     }
   })
 
-  return function onPushState (fn) {
+  return function onUrlChange (fn) {
     handlers.push(fn)
   }
 }())
@@ -81,9 +99,12 @@ const { updateUserData, getUserData } = (function () {
   return {
     updateUserData () {
       userIsUpdating = true
-      const href = document.querySelector('.userNav__usernameButton').href
-      const permalink = href.substring(href.lastIndexOf('/') + 1)
-      userPromise = getAnyUserData(permalink)
+      userPromise = poll(() => document.querySelector('.userNav__usernameButton'))
+        .then(el => {
+          const href = el.href
+          const permalink = href.substring(href.lastIndexOf('/') + 1)
+          return getAnyUserData(permalink)
+        })
         .then(userData => {
           user = userData
           userIsUpdating = false

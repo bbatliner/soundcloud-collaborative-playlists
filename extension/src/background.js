@@ -20,7 +20,6 @@ chrome.extension.onConnect.addListener(port => {
   })
 
   if (port.name === 'fb_msgs') {
-
     port.onMessage.addListener(msg => {
       if (disconnected) {
         return
@@ -78,7 +77,15 @@ chrome.extension.onConnect.addListener(port => {
         return
       }
 
-      if (msg.type === '') {}
+      if (msg.type === 'editablePlaylistsRequest') {
+        firebase.database().ref(`editPermissions/users/${msg.userId}`).once('value', (snapshot) => {
+          port.postMessage({
+            type: 'editablePlaylistsResponse',
+            editablePlaylists: snapshot.val()
+          })
+        })
+        return
+      }
 
       // if (msg.type === 'grantEditPermissions') {
       //   firebase.database().ref(`editPermissions/${msg.playlistId}/${msg.userId}`).once('value', (snapshot) => {
@@ -115,6 +122,9 @@ chrome.extension.onConnect.addListener(port => {
     })
 
     firebase.auth().onAuthStateChanged(user => {
+      if (disconnected) {
+        return
+      }
       if (user) {
         console.log('Logged in:', user)
         port.postMessage({ type: 'login', user })

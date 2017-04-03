@@ -39,7 +39,7 @@ function setRefreshHandler () {
   }
 }
 // Run on push state
-onPushState(setRefreshHandler)
+onUrlChange(setRefreshHandler)
 // Run immediately
 setRefreshHandler()
 
