@@ -80,35 +80,56 @@ const tracksObserver = new MutationObserver(mutations => {
         getEditablePlaylists
           .then(editablePlaylists => {
             const listPromise = poll(() => node.querySelector('.lazyLoadingList__list'), 10, 5000)
-            return Promise.all(
-              [listPromise, ...Object.keys(editablePlaylists).filter(key => editablePlaylists[key] === true).map(getAnyPlaylistDataById)]
-            )
+            const playlistDataPromise = Promise.all(Object.keys(editablePlaylists).filter(key => editablePlaylists[key] === true).map(getAnyPlaylistDataById))
+            return Promise.all([listPromise, playlistDataPromise])
           })
-          .then(([list, ...playlistDataArr]) => {
+          .then(([list, playlistDataArr]) => {
+            const hr = stringToDom('<hr id="collaborativeDivider">')
+            list.parentNode.insertBefore(hr, list)
+            const collaborativeList = stringToDom('<ul class="lazyLoadingList__list sc-list-nostyle sc-clearfix"></ul>')
+            list.parentNode.insertBefore(collaborativeList, hr)
             // Sort and add to DOM
             playlistDataArr
-              .sort((a, b) => {
-                // Sort by creation time
-                return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-              })
+              .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
               .map(createPlaylistListItem)
-              .forEach(listItem => list.appendChild(listItem))
+              .forEach(listItem => collaborativeList.appendChild(listItem))
           })
 
         // Filter input
-        const filterPromise = poll(() => node.querySelector('.addToPlaylistList input'), 100, 5000)
-        filterPromise.then(filter => {
-          filter.addEventListener('input', () => {
-            Array.from(node.querySelectorAll('.sc-collaborative')).forEach(listItem => {
-              // TODO: Maintain ordering in list (whatever ordering that is)
-              if (listItem.querySelector('.addToPlaylistItem__titleLink').title.startsWith(filter.value)) {
-                listItem.style.display = ''
+        poll(() => node.querySelector('.addToPlaylistList input'), 100, 5000)
+          .then(filter => {
+            filter.addEventListener('input', () => {
+              const collaborativePlaylists = Array.from(node.querySelectorAll('.sc-collaborative'))
+              collaborativePlaylists.forEach(listItem => {
+                const filterOnTitle = listItem.querySelector('.addToPlaylistItem__titleLink').title.toLowerCase().startsWith(filter.value.toLowerCase())
+                const filterOnCollaborative = filter.value.length > 0 && 'collaborative'.startsWith(filter.value.toLowerCase())
+                if (filterOnTitle || filterOnCollaborative) {
+                  listItem.style.display = ''
+                } else {
+                  listItem.style.display = 'none'
+                }
+              })
+              const hr = document.getElementById('collaborativeDivider')
+              const noCollaborative = collaborativePlaylists.every(list => list.style.display === 'none')
+              const onlyCollaborative = node.querySelector('#collaborativeDivider + ul').children.length === 0
+              if (noCollaborative || onlyCollaborative) {
+                hr.style.display = 'none'
               } else {
-                listItem.style.display = 'none'
+                hr.style.display = ''
               }
             })
           })
-        })
+
+        // Clear button
+        poll(() => node.querySelector('.addToPlaylistList button.textfield__clear'), 100, 5000)
+          .then(clear => {
+            clear.addEventListener('click', () => {
+              const collaborativePlaylists = Array.from(node.querySelectorAll('.sc-collaborative'))
+              collaborativePlaylists.forEach(listItem => {
+                listItem.style.display = ''
+              })
+            })
+          })
       }
     })
   })

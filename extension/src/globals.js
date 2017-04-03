@@ -97,6 +97,12 @@ function getAnyPlaylistDataById (playlistId) {
     .then(response => response.json())
 }
 
+function getAnyPlaylistData (url) {
+  return fetch(`https://api.soundcloud.com/resolve.json?url=${url}&client_id=z8LRYFPM4UK5MMLaBe9vixfph5kqNA25`)
+    .then(checkStatus)
+    .then(response => response.json())
+}
+
 const { updateUserData, getUserData } = (function () {
   let user = {}
   let userIsUpdating = false
@@ -140,9 +146,7 @@ const { updatePlaylistData, getPlaylistData } = (function () {
   return {
     updatePlaylistData (url) {
       playlistIsUpdating = true
-      return playlistPromise = fetch(`https://api.soundcloud.com/resolve.json?url=${url}&client_id=z8LRYFPM4UK5MMLaBe9vixfph5kqNA25`)
-        .then(checkStatus)
-        .then(response => response.json())
+      return playlistPromise = getAnyPlaylistData(url)
         .then(playlistData => {
           playlist = playlistData
           playlistIsUpdating = false

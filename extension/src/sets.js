@@ -283,7 +283,7 @@ const setsObserver = new MutationObserver(mutations => {
                 name: el.textContent
               }))
               userData.full_name = userData.full_name || userData.username || userData.permalink
-              const indexOfName = existingCollaborators.map(c => c.name).indexOf(userData.full_name)
+              const indexOfName = existingCollaborators.map(c => c.name.toLowerCase()).indexOf(userData.full_name.toLowerCase())
               if (indexOfName === -1) {
                 indexToInsert = [...existingCollaborators.map(c => c.name.toLowerCase()), userData.full_name.toLowerCase()].sort().indexOf(userData.full_name.toLowerCase())
               } else {
