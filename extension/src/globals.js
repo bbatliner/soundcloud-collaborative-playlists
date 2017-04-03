@@ -91,6 +91,12 @@ function getAnyUserData (permalink) {
     .then(response => response.json())
 }
 
+function getAnyPlaylistDataById (playlistId) {
+  return fetch(`https://api.soundcloud.com/playlists/${playlistId}.json?client_id=z8LRYFPM4UK5MMLaBe9vixfph5kqNA25`)
+    .then(checkStatus)
+    .then(response => response.json())
+}
+
 const { updateUserData, getUserData } = (function () {
   let user = {}
   let userIsUpdating = false
