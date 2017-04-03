@@ -1,42 +1,45 @@
 'use strict'
 
-let editablePlaylists = {}
-
-// Listen for data refresh messages
-function trackRefreshHandler () {
-  if (location.href.match(trackRegex)) {
-    // Update list of editable playlists
-    getUserData()
-      .then(userData => {
-        const data = {
-          type: 'editablePlaylistsRequest',
-          userId: userData.id
-        }
-        return postMessage(port, data, 'editablePlaylistsResponse')
-      })
-      .then(response => {
-        editablePlaylists = response.editablePlaylists || {}
-      })
+const getEditablePlaylists = (function () {
+  function getPromise () {
+    return new Promise((resolve, reject) => {
+      // Update list of editable playlists
+      getUserData()
+        .then(userData => {
+          const data = {
+            type: 'editablePlaylistsRequest',
+            userId: userData.id
+          }
+          return postMessage(port, data, 'editablePlaylistsResponse')
+        })
+        .then(response => {
+          resolve(response.editablePlaylists || {})
+        })
+        .catch(reject)
+    })
   }
-}
-// Run on push state
-onUrlChange(trackRefreshHandler)
-// Run immediately
-trackRefreshHandler()
+  let editablePlaylistsPromise = getPromise()
+  onUrlChange(() => {
+    if (location.href.match(trackRegex)) {
+      editablePlaylistsPromise = getPromise()
+    }
+  })
+  return editablePlaylistsPromise
+}())
 
 // DOM helpers
 
 // Inject some dank CSS
 document.head.appendChild(stringToDom(`<style>.sc-collaborative-label {
-  padding: 2px 6px;
+  padding: 1px 4px;
   margin-left: 4px;
-  height: initial;
-  line-height: initial;
+  height: 16px;
+  line-height: 1.2;
 }</style>`))
 
 function createPlaylistListItem (playlistData) {
   const dom = stringToDom([
-    '<li class="addToPlaylistList__item sc-border-light-top">',
+    '<li class="addToPlaylistList__item sc-border-light-top sc-collaborative">',
       '<div class="addToPlaylistItem g-flex-row-centered">',
         `<a href="${playlistData.permalink_url}" class="addToPlaylistItem__image" title="${playlistData.title}">`,
           '<div class="image m-playlist image__lightOutline readOnly sc-artwork sc-artwork-placeholder-9 m-loaded" style="height: 50px; width: 50px;">',
@@ -67,22 +70,38 @@ const tracksObserver = new MutationObserver(mutations => {
     mutation.addedNodes.forEach(node => {
       // Modal added to DOM
       if (node.classList.contains('modal') && node.querySelector('.addToPlaylistList')) {
-        console.log('got a nice add to playlist modal')
-        console.log(editablePlaylists)
-
         // Playlist list
-        const listPromise = poll(() => node.querySelector('.lazyLoadingList__list'), 10)
-        Promise.all(
-          [listPromise, ...Object.keys(editablePlaylists).filter(key => editablePlaylists[key] === true).map(getAnyPlaylistDataById)]
-        ).then(([list, ...playlistDataArr]) => {
-          // Sort and add to DOM
-          playlistDataArr
-            .sort((a, b) => {
-              // Sort by creation time
-              return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        getEditablePlaylists
+          .then(editablePlaylists => {
+            const listPromise = poll(() => node.querySelector('.lazyLoadingList__list'), 10, 5000)
+            return Promise.all(
+              [listPromise, ...Object.keys(editablePlaylists).filter(key => editablePlaylists[key] === true).map(getAnyPlaylistDataById)]
+            )
+          })
+          .then(([list, ...playlistDataArr]) => {
+            // Sort and add to DOM
+            playlistDataArr
+              .sort((a, b) => {
+                // Sort by creation time
+                return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+              })
+              .map(createPlaylistListItem)
+              .forEach(listItem => list.appendChild(listItem))
+          })
+
+        // Filter input
+        const filterPromise = poll(() => node.querySelector('.addToPlaylistList input'), 100, 5000)
+        filterPromise.then(filter => {
+          filter.addEventListener('input', () => {
+            Array.from(node.querySelectorAll('.sc-collaborative')).forEach(listItem => {
+              // TODO: Maintain ordering in list (whatever ordering that is)
+              if (listItem.querySelector('.addToPlaylistItem__titleLink').title.startsWith(filter.value)) {
+                listItem.style.display = ''
+              } else {
+                listItem.style.display = 'none'
+              }
             })
-            .map(createPlaylistListItem)
-            .forEach(listItem => list.appendChild(listItem))
+          })
         })
       }
     })
