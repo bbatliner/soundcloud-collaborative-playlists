@@ -31,19 +31,19 @@ const getEditablePlaylists = (function () {
 
 // Inject some dank CSS
 document.head.appendChild(stringToDom(`<style>
-.sc-collaborative-label {
-  padding: 1px 4px;
-  margin-left: 8px;
-  height: 16px;
-  line-height: 1.2;
-  user-select: initial;
-}
-.sc-collaborative-label:hover {
-  cursor: default;
-}
+  .sc-collaborative-label {
+    padding: 1px 4px;
+    margin-left: 8px;
+    height: 16px;
+    line-height: 1.2;
+    user-select: initial;
+  }
+  .sc-collaborative-label:hover {
+    cursor: default;
+  }
 </style>`))
 
-function createPlaylistListItem (playlistData, trackPermalink) {
+function createPlaylistListItem (playlistData) {
   const dom = stringToDom([
     '<li class="addToPlaylistList__item sc-border-light-top sc-collaborative">',
       '<div class="addToPlaylistItem g-flex-row-centered">',
