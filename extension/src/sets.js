@@ -6,8 +6,8 @@ let isCollaborative = false
 let collaborators = {}
 
 // Listen for data refresh messages
-port.onMessage.addListener(msg => {
-  if (msg.type === 'refresh' && msg.name === 'playlist' && location.href.match(/https:\/\/soundcloud\.com\/.+\/sets\/.+/)) {
+function setRefreshHandler () {
+  if (location.href.match(setRegex)) {
     // Start the fetch for new data
     updatePlaylistData(location.href)
 
@@ -37,7 +37,11 @@ port.onMessage.addListener(msg => {
         collaborators = response.collaborators || {}
       })
   }
-})
+}
+// Run on push state
+onPushState(setRefreshHandler)
+// Run immediately
+setRefreshHandler()
 
 // DOM helpers
 const ctaButtonSelector = '.audibleEditForm__formButtons .sc-button-cta'
@@ -95,7 +99,7 @@ function createGritter ({ text, image }) {
   document.getElementById(`gritter-item-${id}`).querySelector('.gritter-close').textContent = ''
 }
 
-const observer = new MutationObserver(mutations => {
+const setsObserver = new MutationObserver(mutations => {
   mutations.forEach(mutation => {
     mutation.addedNodes.forEach(node => {
       // Modal added to DOM
@@ -377,6 +381,6 @@ const observer = new MutationObserver(mutations => {
     })
   })
 })
-observer.observe(document.body, {
+setsObserver.observe(document.body, {
   childList: true
 })

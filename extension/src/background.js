@@ -14,21 +14,17 @@ chrome.extension.onConnect.addListener(port => {
     port.postMessage({ type: 'error', error: err })
   }
 
-  if (port.name === 'fb_msgs') {
-    // Listen for url changes
-    chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-      if (!tab.url) {
-        return
-      }
-      if (tab.url.match(/https:\/\/soundcloud\.com\/.+\/sets\/.+/) && (changeInfo.status === 'completed' || changeInfo.status === 'complete')) {
-        port.postMessage({ type: 'refresh', name: 'playlist' })
-      }
-    })
-  }
+  let disconnected = false
+  port.onDisconnect.addListener(() => {
+    disconnected = true
+  })
 
   if (port.name === 'fb_msgs') {
 
     port.onMessage.addListener(msg => {
+      if (disconnected) {
+        return
+      }
 
       if (msg.type === 'customToken') {
         firebase.auth().signInWithCustomToken(msg.token).catch(errorHandler)
@@ -65,7 +61,7 @@ chrome.extension.onConnect.addListener(port => {
       }
 
       if (msg.type === 'collaboratorsRequest') {
-        firebase.database().ref(`editPermissions/${msg.playlistId}`).once('value', (snapshot) => {
+        firebase.database().ref(`editPermissions/playlists/${msg.playlistId}`).once('value', (snapshot) => {
           port.postMessage({
             type: 'collaboratorsResponse',
             collaborators: snapshot.val()
@@ -75,9 +71,14 @@ chrome.extension.onConnect.addListener(port => {
       }
 
       if (msg.type === 'saveCollaborators') {
-        firebase.database().ref(`editPermissions/${msg.playlistId}`).set(msg.collaborators)
+        firebase.database().ref(`editPermissions/playlists/${msg.playlistId}`).set(msg.collaborators)
+        Object.keys(msg.collaborators).forEach(collaboratorId => {
+          firebase.database().ref(`editPermissions/users/${collaboratorId}/${msg.playlistId}`).set(msg.collaborators[collaboratorId])
+        })
         return
       }
+
+      if (msg.type === '') {}
 
       // if (msg.type === 'grantEditPermissions') {
       //   firebase.database().ref(`editPermissions/${msg.playlistId}/${msg.userId}`).once('value', (snapshot) => {

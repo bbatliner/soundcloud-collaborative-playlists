@@ -1,3 +1,6 @@
+const setRegex = /^https:\/\/soundcloud\.com\/[^\/]+\/sets\/[^\/]+$/
+const trackRegex = /^https:\/\/soundcloud\.com\/(?!you)[^\/]+\/[^\/]+(\?in=.*)?$/
+
 function checkStatus (response) {
   if (response.status !== 200) {
     const error = new Error('Not OK')
@@ -27,6 +30,36 @@ function postMessage (port, data, responseType, timeout = 10000) {
     port.postMessage(data)
   })
 }
+
+const onPushState = (function () {
+  const myScript = document.createElement('script')
+  myScript.innerHTML = `
+    // http://felix-kling.de/blog/2011/01/06/how-to-detect-history-pushstate/
+    const pushState = history.pushState;
+    history.pushState = function customPushState (state) {
+      if (typeof history.onpushstate === 'function') {
+        history.onpushstate({ state });
+      }
+      window.postMessage({ type: 'pushState', state }, '*')
+      return pushState.apply(history, arguments);
+    }
+  `
+  document.head.appendChild(myScript)
+
+  const handlers = []
+  window.addEventListener('message', (event) => {
+    if (event.source !== window) {
+      return
+    }
+    if (event.data.type === 'pushState') {
+      handlers.forEach(handler => handler({ state: event.data.state }))
+    }
+  })
+
+  return function onPushState (fn) {
+    handlers.push(fn)
+  }
+}())
 
 function getAnyUserDataById (userId) {
   return fetch(`https://api.soundcloud.com/users/${userId}.json?client_id=z8LRYFPM4UK5MMLaBe9vixfph5kqNA25`)

@@ -28,7 +28,8 @@
         "vendor/jquery.gritter.min.js",
         "src/globals.js",
         "src/main.js",
-        "src/sets.js"
+        "src/sets.js",
+        "src/tracks.js"
       ]
     }
   ]
