@@ -48,7 +48,15 @@ const ctaButtonSelector = '.audibleEditForm__formButtons .sc-button-cta'
 const cancelButtonSelector = '.audibleEditForm__formButtons .sc-button[title="Cancel"]'
 
 function getPlaylistArtworkUrl () {
-  return document.head.querySelector('meta[property="twitter:image"]').content
+  const meta = document.head.querySelector('meta[property="twitter:image"]')
+  if (meta) {
+    return meta.content
+  }
+  const artwork = document.querySelector('.listenArtworkWrapper span.sc-artwork')
+  if (artwork) {
+    return artwork.style.backgroundImage.slice(5, -2)
+  }
+  throw new Error('Unable to find playlist artwork url')
 }
 
 function createCollaboratorListItem (userData, isNew) {

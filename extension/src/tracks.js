@@ -30,14 +30,20 @@ const getEditablePlaylists = (function () {
 // DOM helpers
 
 // Inject some dank CSS
-document.head.appendChild(stringToDom(`<style>.sc-collaborative-label {
+document.head.appendChild(stringToDom(`<style>
+.sc-collaborative-label {
   padding: 1px 4px;
-  margin-left: 4px;
+  margin-left: 8px;
   height: 16px;
   line-height: 1.2;
-}</style>`))
+  user-select: initial;
+}
+.sc-collaborative-label:hover {
+  cursor: default;
+}
+</style>`))
 
-function createPlaylistListItem (playlistData) {
+function createPlaylistListItem (playlistData, trackPermalink) {
   const dom = stringToDom([
     '<li class="addToPlaylistList__item sc-border-light-top sc-collaborative">',
       '<div class="addToPlaylistItem g-flex-row-centered">',
@@ -48,16 +54,16 @@ function createPlaylistListItem (playlistData) {
         '</a>',
         '<div class="addToPlaylistItem__content">',
           '<h3 class="addToPlaylistItem__title sc-truncate">',
-            `<a href="${playlistData.permalink_url}" class="addToPlaylistItem__titleLink sc-link-dark" title="${playlistData.title}">`,
-              `${playlistData.title} <span class="sc-button sc-button-small sc-button-responsive sc-button-cta sc-collaborative-label">Collaborative</span>`,
+            `<a href="${playlistData.permalink_url}" class="addToPlaylistItem__titleLink sc-link-dark" title="${playlistData.title}">${playlistData.title}</span>`,
             '</a>',
           '</h3>',
           '<div class="addToPlaylistItem__data">',
             `<span title="${playlistData.tracks.length} tracks" class="addToPlaylistItem__count sc-ministats sc-ministats-small sc-ministats-sounds">${playlistData.tracks.length}</span>`,
+            `<span class="sc-button sc-button-small sc-button-responsive sc-button-cta sc-collaborative-label">Collaborative</span>`,
           '</div>',
         '</div>',
         '<div class="addToPlaylistItem__actions g-flex-row-centered">',
-          '<button class="addToPlaylistButton sc-button sc-button-medium sc-button-responsive sc-button-selected" tabindex="0" title="Remove">Added</button>',
+          playlistData.tracks.map(track => track.permalink_url.replace('http:', location.protocol)).includes(`${location.protocol}//${location.host}${location.pathname}`) ? '<button class="addToPlaylistButton sc-button sc-button-medium sc-button-responsive sc-button-selected" tabindex="0" title="Remove">Added</button>' : '<button class="addToPlaylistButton sc-button sc-button-medium sc-button-responsive" tabindex="0" title="Add to playlist">Add to playlist</button>',
         '</div>',
       '</div>',
     '</li>'
