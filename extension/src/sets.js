@@ -1,9 +1,5 @@
 'use strict'
 
-// TODO: figure out a promise based solution for these
-// TODO: or perhaps an event based solution
-let collaborators = {}
-
 const { getIsCollaborative, setIsCollaborative } = (function () {
   function getPromise () {
     return new Promise((resolve, reject) => {
@@ -77,31 +73,6 @@ const { getCollaborators, setCollaboratorById } = (function () {
     }
   }
 }())
-
-// Listen for data refresh messages
-function setRefreshHandler () {
-  if (location.href.match(setRegex)) {
-    // Start the fetch for new data
-    updatePlaylistData(location.href)
-
-    // Update list of collaborators
-    getPlaylistData()
-      .then(playlistData => {
-          const data = {
-            type: 'collaboratorsRequest',
-            playlistId: playlistData.id
-          }
-          return postMessage(port, data, 'collaboratorsResponse')
-      })
-      .then(response => {
-        collaborators = response.collaborators || {}
-      })
-  }
-}
-// Run on push state
-onUrlChange(setRefreshHandler)
-// Run immediately
-setRefreshHandler()
 
 // DOM helpers
 const ctaButtonSelector = '.audibleEditForm__formButtons .sc-button-cta'
