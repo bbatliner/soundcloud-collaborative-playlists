@@ -30,6 +30,13 @@ function doNothing (e) {
   e.stopPropagation()
 }
 
+function createGritter (options) {
+  const id = $.gritter.add(Object.assign({}, options, {
+    class_name: 'no-title'
+  }))
+  document.getElementById(`gritter-item-${id}`).querySelector('.gritter-close').textContent = ''
+}
+
 function postMessage (port, data, responseType, timeout = 10000) {
   return new Promise((resolve, reject) => {
     const rejectTimeout = setTimeout(() => { reject('Timeout') }, timeout)
@@ -98,6 +105,12 @@ function getAnyPlaylistDataById (playlistId) {
 }
 
 function getAnyPlaylistData (url) {
+  return fetch(`https://api.soundcloud.com/resolve.json?url=${url}&client_id=z8LRYFPM4UK5MMLaBe9vixfph5kqNA25`)
+    .then(checkStatus)
+    .then(response => response.json())
+}
+
+function getAnyTrackData (url) {
   return fetch(`https://api.soundcloud.com/resolve.json?url=${url}&client_id=z8LRYFPM4UK5MMLaBe9vixfph5kqNA25`)
     .then(checkStatus)
     .then(response => response.json())

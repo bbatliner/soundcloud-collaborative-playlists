@@ -87,6 +87,32 @@ chrome.extension.onConnect.addListener(port => {
         return
       }
 
+      if (msg.type === 'addTrackToPlaylist') {
+        firebase.database().ref(`tracks/${msg.playlistId}/${msg.trackId}`).set(true, (err) => {
+          const response = {
+            type: 'addTrackToPlaylistResponse'
+          }
+          if (err) {
+            response.error = err.message
+          }
+          port.postMessage(response)
+        })
+        return
+      }
+
+      if (msg.type === 'removeTrackFromPlaylist') {
+        firebase.database().ref(`tracks/${msg.playlistId}/${msg.trackId}`).set(false, (err) => {
+          const response = {
+            type: 'removeTrackFromPlaylistResponse'
+          }
+          if (err) {
+            response.error = err.message
+          }
+          port.postMessage(response)
+        })
+        return
+      }
+
       // if (msg.type === 'grantEditPermissions') {
       //   firebase.database().ref(`editPermissions/${msg.playlistId}/${msg.userId}`).once('value', (snapshot) => {
       //     const response = {

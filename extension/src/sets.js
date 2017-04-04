@@ -2,27 +2,87 @@
 
 // TODO: figure out a promise based solution for these
 // TODO: or perhaps an event based solution
-let isCollaborative = false
 let collaborators = {}
+
+const { getIsCollaborative, setIsCollaborative } = (function () {
+  function getPromise () {
+    return new Promise((resolve, reject) => {
+      // Update isCollaborative
+      getPlaylistData()
+        .then(playlistData => {
+          const data = {
+            type: 'isCollaborativeRequest',
+            playlistId: playlistData.id
+          }
+          return postMessage(port, data, 'isCollaborativeResponse')
+        })
+        .then(response => {
+          resolve(response.isCollaborative)
+        })
+        .catch(reject)
+    })
+  }
+  let isCollaborativePromise = getPromise()
+  onUrlChange(() => {
+    if (location.href.match(setRegex)) {
+      isCollaborativePromise = getPromise()
+    }
+  })
+  
+  return {
+    getIsCollaborative () {
+      return isCollaborativePromise
+    },
+    setIsCollaborative (val) {
+      return new Promise(resolve => {
+        isCollaborativePromise = Promise.resolve(val)
+        resolve()
+      })
+    }
+  }
+}())
+
+const { getCollaborators, setCollaboratorById } = (function () {
+  function getPromise () {
+    return new Promise((resolve, reject) => {
+      // Update list of collaborators
+      getPlaylistData()
+        .then(playlistData => {
+            const data = {
+              type: 'collaboratorsRequest',
+              playlistId: playlistData.id
+            }
+            return postMessage(port, data, 'collaboratorsResponse')
+        })
+        .then(response => {
+          resolve(response.collaborators || {})
+        })
+    })
+  }
+  let collaboratorsPromise = getPromise()
+  onUrlChange(() => {
+    if (location.href.match(setRegex)) {
+      collaboratorsPromise = getPromise()
+    }
+  })
+  return {
+    getCollaborators () {
+      return collaboratorsPromise
+    },
+    setCollaboratorById (id, val) {
+      return getCollaborators().then(collaborators => {
+        collaborators[id] = val
+        collaboratorsPromise = Promise.resolve(collaborators)
+      })
+    }
+  }
+}())
 
 // Listen for data refresh messages
 function setRefreshHandler () {
   if (location.href.match(setRegex)) {
     // Start the fetch for new data
     updatePlaylistData(location.href)
-
-    // Update isCollaborative
-    getPlaylistData()
-      .then(playlistData => {
-        const data = {
-          type: 'isCollaborativeRequest',
-          playlistId: playlistData.id
-        }
-        return postMessage(port, data, 'isCollaborativeResponse')
-      })
-      .then(response => {
-        isCollaborative = response.isCollaborative
-      })
 
     // Update list of collaborators
     getPlaylistData()
@@ -80,31 +140,24 @@ function createCollaboratorListItem (userData, isNew) {
   ].join(''))
   const removeButton = dom.querySelector('.g-button-remove')
   removeButton.addEventListener('click', () => {
-    collaborators[userData.id] = false
-    document.querySelector(ctaButtonSelector).removeAttribute('disabled')
-    if (dom.parentNode) {
-      dom.parentNode.removeChild(dom)
-    }
-  })
-  if (isNew) {
-    const cancelButton = document.querySelector(cancelButtonSelector)
-    cancelButton.addEventListener('click', () => {
-      collaborators[userData.id] = false
+    setCollaboratorById(userData.id, false).then(() => {
+      document.querySelector(ctaButtonSelector).removeAttribute('disabled')
       if (dom.parentNode) {
         dom.parentNode.removeChild(dom)
       }
     })
+  })
+  if (isNew) {
+    const cancelButton = document.querySelector(cancelButtonSelector)
+    cancelButton.addEventListener('click', () => {
+      setCollaboratorById(userData.id, false).then(() => {
+        if (dom.parentNode) {
+          dom.parentNode.removeChild(dom)
+        }
+      })
+    })
   }
   return dom
-}
-
-function createGritter ({ text, image }) {
-  const id = $.gritter.add({
-    text,
-    image,
-    class_name: 'no-title'
-  })
-  document.getElementById(`gritter-item-${id}`).querySelector('.gritter-close').textContent = ''
 }
 
 const setsObserver = new MutationObserver(mutations => {
@@ -115,71 +168,76 @@ const setsObserver = new MutationObserver(mutations => {
         // "Save Changes" override
         const ctaButton = document.querySelector(ctaButtonSelector)
         ctaButton.addEventListener('click', () => {
-          getPlaylistData().then(playlistData => {
-            // Controls the ctaButton state and styles to simulate a save
-            function save () {
-              ctaButton.classList.add('sc-pending')
-              ctaButton.innerHTML = 'Saving'
-              ctaButton.disabled = 'disabled'
-              setTimeout(() => {
-                ctaButton.classList.remove('sc-pending')
-                ctaButton.innerHTML = 'Save Changes'
-                const closeButton = document.querySelector('.modal__closeButton')
-                if (closeButton) {
-                  closeButton.click()
-                  if (!document.getElementById('gritter-notice-wrapper')) {
-                    createGritter({
-                      text: 'Your playlist has been updated successfully.',
-                      image: getPlaylistArtworkUrl().replace('500x500', '50x50')
-                    })
+          Promise.all([getPlaylistData(), getIsCollaborative(), getCollaborators()])
+            .then(([playlistData, isCollaborative, collaborators]) => {
+              // Controls the ctaButton state and styles to simulate a save
+              function save () {
+                ctaButton.classList.add('sc-pending')
+                ctaButton.innerHTML = 'Saving'
+                ctaButton.disabled = 'disabled'
+                setTimeout(() => {
+                  ctaButton.classList.remove('sc-pending')
+                  ctaButton.innerHTML = 'Save Changes'
+                  const closeButton = document.querySelector('.modal__closeButton')
+                  if (closeButton) {
+                    closeButton.click()
+                    if (!document.getElementById('gritter-notice-wrapper')) {
+                      createGritter({
+                        text: 'Your playlist has been updated successfully.',
+                        image: getPlaylistArtworkUrl().replace('500x500', '50x50')
+                      })
+                    }
+                  } else {
+                    console.warn('Unable to close modal - close button not found.')
                   }
-                } else {
-                  console.warn('Unable to close modal - close button not found.')
-                }
-              }, 750)
-            }
+                }, 750)
+              }
 
-            // Handle isCollaborative
-            if (isCollaborative) {
-              port.postMessage({
-                type: 'markCollaborative',
-                playlistId: playlistData.id
-              })
-              save()
-            } else {
-              port.postMessage({
-                type: 'unmarkCollaborative',
-                playlistId: playlistData.id
-              })
-            }
+              // Handle isCollaborative
+              if (isCollaborative) {
+                port.postMessage({
+                  type: 'markCollaborative',
+                  playlistId: playlistData.id
+                })
+                save()
+              } else {
+                port.postMessage({
+                  type: 'unmarkCollaborative',
+                  playlistId: playlistData.id
+                })
+              }
 
-            // Handle collaborators
-            if (isCollaborative) {
-              port.postMessage({
-                type: 'saveCollaborators',
-                playlistId: playlistData.id,
-                collaborators: collaborators
-              })
-              save()
-            }
-          })
+              // Handle collaborators
+              if (isCollaborative) {
+                port.postMessage({
+                  type: 'saveCollaborators',
+                  playlistId: playlistData.id,
+                  collaborators: collaborators
+                })
+                save()
+              }
+            })
         })
 
-        if (isCollaborative) {
-          // Set active playlist type to Collaborative Playlist
-          const button = node.querySelector('.baseFields__playlistTypeSelect button.sc-button-dropdown')
-          const labels = button.querySelectorAll('span span')
-          for (let i = 0; i < labels.length; i++) {
-            labels[i].textContent = 'Collaborative Playlist'
+        getIsCollaborative().then(isCollaborative => {
+          if (isCollaborative) {
+            // Set active playlist type to Collaborative Playlist
+            const button = node.querySelector('.baseFields__playlistTypeSelect button.sc-button-dropdown')
+            const labels = button.querySelectorAll('span span')
+            for (let i = 0; i < labels.length; i++) {
+              labels[i].textContent = 'Collaborative Playlist'
+            }
           }
-        }
+        })
 
         // Add tab for Collaborators
         const ul = node.querySelector('.g-tabs')
         const li = stringToDom('<li class="g-tabs-item" id="collaboratorsTabLi"></li>')
-        if (!isCollaborative) {
-          li.style.display = 'none'
-        }
+        getIsCollaborative().then(isCollaborative => {
+          if (!isCollaborative) {
+            li.style.display = 'none'
+          }
+        })
         li.addEventListener('click', doNothing)
         const a = stringToDom('<a class="g-tabs-link" href>Collaborators</a>')
         li.appendChild(a)
@@ -196,25 +254,29 @@ const setsObserver = new MutationObserver(mutations => {
 
         // Collaborator list
         const list = stringToDom('<ul class="collaborators__list editTrackList__list sc-clearfix sc-list-nostyle"></ul>')
-        Promise.all(
-          Object.keys(collaborators).filter(key => collaborators[key] === true).map(getAnyUserDataById)
-        ).then(userDataArr => {
-          // Clean data...
-          userDataArr.forEach(user => { user.full_name = user.full_name || user.username || user.permalink })
-          // Sort and add to DOM
-          userDataArr
-            .sort((a, b) => {
-              // Sort lexicographically
-              const name = a.full_name.toLowerCase().localeCompare(b.full_name.toLowerCase())
-              if (name !== 0) {
-                return name
-              }
-              // And then by id
-              return a.id - b.id
-            })
-            .map(createCollaboratorListItem)
-            .forEach(listItem => list.appendChild(listItem))
-        })
+        getCollaborators()
+          .then(collaborators => {
+            return Promise.all(
+              Object.keys(collaborators).filter(key => collaborators[key] === true).map(getAnyUserDataById)
+            )
+          })
+          .then(userDataArr => {
+            // Clean data...
+            userDataArr.forEach(user => { user.full_name = user.full_name || user.username || user.permalink })
+            // Sort and add to DOM
+            userDataArr
+              .sort((a, b) => {
+                // Sort lexicographically
+                const name = a.full_name.toLowerCase().localeCompare(b.full_name.toLowerCase())
+                if (name !== 0) {
+                  return name
+                }
+                // And then by id
+                return a.id - b.id
+              })
+              .map(createCollaboratorListItem)
+              .forEach(listItem => list.appendChild(listItem))
+          })
         tab.appendChild(list)
 
         // Inject some dank CSS
@@ -263,18 +325,19 @@ const setsObserver = new MutationObserver(mutations => {
             return
           }
           const a = getAnyUserData(collaboratorInput.value)
-          const b = getPlaylistData()
-          const c = getUserData()
-          Promise.all([a, b, c])
-            .then(([userData, playlistData, myUserData]) => {
-              if (collaborators[userData.id] === true) {
-                throw new Error('Collaborator already added!')
-              }
-              if (userData.id === myUserData.id) {
-                throw new Error('Collaborate with yourself? Impossible!')
-              }
-              collaborators[userData.id] = true
-
+          const b = getUserData()
+          const c = getCollaborators()
+          const d = Promise.all([a, b, c]).then(([userData, myUserData, collaborators]) => {
+            if (collaborators[userData.id] === true) {
+              throw new Error('Collaborator already added!')
+            }
+            if (userData.id === myUserData.id) {
+              throw new Error('Collaborate with yourself? Impossible!')
+            }
+            return setCollaboratorById(userData.id, true)
+          })
+          Promise.all([a, b, c, d])
+            .then(([userData, myUserData, collaborators]) => {
               // Find the correct index to insert the new collaborator
               let indexToInsert
               const selector = '.collaborators__list .editTrackItem .sc-link-light'
@@ -347,26 +410,29 @@ const setsObserver = new MutationObserver(mutations => {
         newLink.href = ''
         newLink.textContent = 'Collaborative Playlist'
         newItem.appendChild(newLink)
-        if (isCollaborative) {
-          newItem.classList.add('linkMenu__activeItem')
-          list.querySelector('.linkMenu__activeItem').classList.remove('linkMenu__activeItem')
-        }
+        getIsCollaborative().then(isCollaborative => {
+          if (isCollaborative) {
+            newItem.classList.add('linkMenu__activeItem')
+            list.querySelector('.linkMenu__activeItem').classList.remove('linkMenu__activeItem')
+          }
+        })
         list.insertBefore(newItem, list.children[1])
 
         // "Collaborative Playlist" list item events
         newItem.addEventListener('click', doNothing)
         newItem.addEventListener('click', (e) => {
-          isCollaborative = true
-          // Show collaborators tab, if present
-          document.querySelector('#collaboratorsTabLi').style.display = ''
-          // Set menu labels to Collaborative Playlist
-          const menu = document.querySelector('.dropdownMenu')
-          menu.parentNode.removeChild(menu)
-          const labelsParent = document.querySelector('.baseFields__playlistTypeSelect .sc-button-alt-labels')
-          for (let i = 0; i < labelsParent.children.length; i++) {
-            labelsParent.children[i].textContent = 'Collaborative Playlist'
-          }
-          document.querySelector(ctaButtonSelector).removeAttribute('disabled')
+          setIsCollaborative(true).then(() => {
+            // Show collaborators tab, if present
+            document.querySelector('#collaboratorsTabLi').style.display = ''
+            // Set menu labels to Collaborative Playlist
+            const menu = document.querySelector('.dropdownMenu')
+            menu.parentNode.removeChild(menu)
+            const labelsParent = document.querySelector('.baseFields__playlistTypeSelect .sc-button-alt-labels')
+            for (let i = 0; i < labelsParent.children.length; i++) {
+              labelsParent.children[i].textContent = 'Collaborative Playlist'
+            }
+            document.querySelector(ctaButtonSelector).removeAttribute('disabled')
+          })
         })
 
         // Set the label back to a normal option when it's selected (not Collaborative Playlist)
@@ -375,14 +441,15 @@ const setsObserver = new MutationObserver(mutations => {
             return
           }
           li.addEventListener('click', () => {
-            isCollaborative = false
-            // Hide collaborators tab
-            document.querySelector('#collaboratorsTabLi').style.display = 'none'
-            // Set menu labels to the selected playlist type
-            const labelsParent = document.querySelector('.baseFields__playlistTypeSelect .sc-button-alt-labels')
-            for (let i = 0; i < labelsParent.children.length; i++) {
-              labelsParent.children[i].textContent = li.firstElementChild.textContent
-            }
+            setIsCollaborative(false).then(() => {
+              // Hide collaborators tab
+              document.querySelector('#collaboratorsTabLi').style.display = 'none'
+              // Set menu labels to the selected playlist type
+              const labelsParent = document.querySelector('.baseFields__playlistTypeSelect .sc-button-alt-labels')
+              for (let i = 0; i < labelsParent.children.length; i++) {
+                labelsParent.children[i].textContent = li.firstElementChild.textContent
+              }
+            })
           })
         })
       }

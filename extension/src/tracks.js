@@ -24,7 +24,7 @@ const getEditablePlaylists = (function () {
       editablePlaylistsPromise = getPromise()
     }
   })
-  return editablePlaylistsPromise
+  return () => editablePlaylistsPromise
 }())
 
 // DOM helpers
@@ -68,6 +68,90 @@ function createPlaylistListItem (playlistData) {
       '</div>',
     '</li>'
   ].join(''))
+  const addToPlaylistButton = dom.querySelector('.addToPlaylistButton')
+  let isWorking = false
+  addToPlaylistButton.addEventListener('click', () => {
+    if (isWorking) {
+      return
+    }
+    if (addToPlaylistButton.textContent === 'Add to playlist') {
+      isWorking = true
+      // Immediately update button
+      addToPlaylistButton.textContent = 'Added'
+      addToPlaylistButton.classList.add('sc-button-selected')
+      addToPlaylistButton.title = 'Remove'
+      // Then actually add to playlist
+      const a = getAnyTrackData(location.href)
+      const b = a.then(trackData => {
+        const data = {
+          type: 'addTrackToPlaylist',
+          playlistId: playlistData.id,
+          trackId: trackData.id
+        }
+        return postMessage(port, data, 'addTrackToPlaylistResponse')
+      })
+      Promise.all([a, b])
+        .then(([trackData]) => {
+          createGritter({
+            title: trackData.title,
+            text: `was added to <a href="${playlistData.permalink_url}">${playlistData.title}</a>.`,
+            image: playlistData.artwork_url || playlistData.tracks[0].artwork_url
+          })
+          isWorking = false
+        })
+        .catch(() => {
+          createGritter({
+            title: 'Something went wrong :(',
+            text: 'Couldn\'t add track to playlist.',
+            image: playlistData.artwork_url || playlistData.tracks[0].artwork_url
+          })
+          // Revert button to old state
+          addToPlaylistButton.textContent = 'Add to playlist'
+          addToPlaylistButton.classList.remove('sc-button-selected')
+          addToPlaylistButton.title = 'Add to playlist'
+          isWorking = false
+        })
+      return
+    }
+    if (addToPlaylistButton.textContent === 'Added') {
+      isWorking = true
+      // Immediately update button
+      addToPlaylistButton.textContent = 'Add to playlist'
+      addToPlaylistButton.classList.remove('sc-button-selected')
+      addToPlaylistButton.title = 'Add to playlist'
+      // Then actually remove from playlist
+      const a = getAnyTrackData(location.href)
+      const b = a.then(trackData => {
+        const data = {
+          type: 'removeTrackFromPlaylist',
+          playlistId: playlistData.id,
+          trackId: trackData.id
+        }
+        return postMessage(port, data, 'removeTrackFromPlaylistResponse')
+      })
+      Promise.all([a, b])
+        .then(([trackData]) => {
+          addToPlaylistButton.textContent = 'Add to playlist'
+          addToPlaylistButton.classList.remove('sc-button-selected')
+          addToPlaylistButton.title = 'Add to playlist'
+          isWorking = false
+        })
+        .catch(() => {
+          createGritter({
+            title: 'Something went wrong :(',
+            text: 'Couldn\'t remove track from playlist.',
+            image: playlistData.artwork_url || playlistData.tracks[0].artwork_url
+          })
+          // Revert button to old state
+          addToPlaylistButton.textContent = 'Added'
+          addToPlaylistButton.classList.add('sc-button-selected')
+          addToPlaylistButton.title = 'Remove'
+          isWorking = false
+        })
+      return
+    }
+    throw new Error('addToPlaylistButton had unexpected textContent')
+  })
   return dom
 }
 
@@ -77,13 +161,16 @@ const tracksObserver = new MutationObserver(mutations => {
       // Modal added to DOM
       if (node.classList.contains('modal') && node.querySelector('.addToPlaylistList')) {
         // Playlist list
-        getEditablePlaylists
+        getEditablePlaylists()
           .then(editablePlaylists => {
             const listPromise = poll(() => node.querySelector('.lazyLoadingList__list'), 10, 5000)
             const playlistDataPromise = Promise.all(Object.keys(editablePlaylists).filter(key => editablePlaylists[key] === true).map(getAnyPlaylistDataById))
             return Promise.all([listPromise, playlistDataPromise])
           })
           .then(([list, playlistDataArr]) => {
+            if (playlistDataArr.length === 0) {
+              return
+            }
             const hr = stringToDom('<hr id="collaborativeDivider">')
             list.parentNode.insertBefore(hr, list)
             const collaborativeList = stringToDom('<ul class="lazyLoadingList__list sc-list-nostyle sc-clearfix"></ul>')
