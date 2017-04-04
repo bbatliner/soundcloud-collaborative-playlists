@@ -74,6 +74,22 @@ const { getCollaborators, setCollaboratorById } = (function () {
   }
 }())
 
+// Show "Collaborative" indicator
+function showCollaborative () {
+  Promise.all([getIsCollaborative(), getCollaborators()])
+    .then(([isCollaborative, collaborators]) => {
+      if (isCollaborative) {
+        document.querySelector('.fullHero__uploadTime').appendChild(stringToDom('<span class="sc-button sc-button-responsive sc-button-cta sc-collaborative-label" style="margin-top: 2px">Collaborative</span>'))
+      }
+    })
+}
+onUrlChange(() => {
+  if (location.href.match(setRegex)) {
+    showCollaborative()
+  }
+})
+showCollaborative()
+
 // DOM helpers
 const ctaButtonSelector = '.audibleEditForm__formButtons .sc-button-cta'
 const cancelButtonSelector = '.audibleEditForm__formButtons .sc-button[title="Cancel"]'
@@ -118,7 +134,7 @@ function createCollaboratorListItem (userData, isNew) {
       }
     })
   })
-  if (isNew) {
+  if (isNew === true) {
     const cancelButton = document.querySelector(cancelButtonSelector)
     cancelButton.addEventListener('click', () => {
       setCollaboratorById(userData.id, false).then(() => {

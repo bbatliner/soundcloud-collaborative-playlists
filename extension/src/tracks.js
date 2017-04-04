@@ -32,13 +32,20 @@ const getEditablePlaylists = (function () {
 // Inject some dank CSS
 document.head.appendChild(stringToDom(`<style>
   .sc-collaborative-label {
+    margin-left: 10px;
+    height: 26px;
+    line-height: 1.5;
+    user-select: initial;
+  }
+  .sc-collaborative-label-small {
     padding: 1px 4px;
     margin-left: 8px;
     height: 16px;
     line-height: 1.2;
     user-select: initial;
   }
-  .sc-collaborative-label:hover {
+  .sc-collaborative-label:hover,
+  .sc-collaborative-label-small:hover {
     cursor: default;
   }
 </style>`))
@@ -59,7 +66,7 @@ function createPlaylistListItem (playlistData) {
           '</h3>',
           '<div class="addToPlaylistItem__data">',
             `<span title="${playlistData.tracks.length} tracks" class="addToPlaylistItem__count sc-ministats sc-ministats-small sc-ministats-sounds">${playlistData.tracks.length}</span>`,
-            `<span class="sc-button sc-button-small sc-button-responsive sc-button-cta sc-collaborative-label">Collaborative</span>`,
+            `<span class="sc-button sc-button-small sc-button-responsive sc-button-cta sc-collaborative-label-small">Collaborative</span>`,
           '</div>',
         '</div>',
         '<div class="addToPlaylistItem__actions g-flex-row-centered">',
