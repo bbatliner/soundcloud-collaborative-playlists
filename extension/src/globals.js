@@ -116,69 +116,35 @@ function getAnyTrackData (url) {
     .then(response => response.json())
 }
 
-const { updateUserData, getUserData } = (function () {
-  let user = {}
-  let userIsUpdating = false
+const getUserData = (function () {
   let userPromise
-
-  return {
-    updateUserData () {
-      userIsUpdating = true
+  return function getUserData () {
+    // Lazy load user data!
+    if (!userPromise) {
       userPromise = poll(() => document.querySelector('.userNav__usernameButton'))
         .then(el => {
           const href = el.href
           const permalink = href.substring(href.lastIndexOf('/') + 1)
           return getAnyUserData(permalink)
         })
-        .then(userData => {
-          user = userData
-          userIsUpdating = false
-          return userData
-        })
-        .catch(() => {
-          userIsUpdating = false
-        })
-    },
-    getUserData () {
-      if (!userPromise) {
-        updateUserData()
-      }
-      if (userIsUpdating) {
-        return userPromise
-      }
-      return Promise.resolve(user)
     }
+    return userPromise
   }
 })()
 
-const { updatePlaylistData, getPlaylistData } = (function () {
-  let playlist = {}
-  let playlistIsUpdating = false
-  let playlistPromise
+const getPlaylistData = (function () {
+  let playlistPromise = Promise.resolve(null)
 
-  return {
-    updatePlaylistData (url) {
-      playlistIsUpdating = true
-      return playlistPromise = getAnyPlaylistData(url)
-        .then(playlistData => {
-          playlist = playlistData
-          playlistIsUpdating = false
-          return playlistData
-        })
-        .catch(() => {
-          playlistIsUpdating = false
-        })
-    },
-    getPlaylistData () {
-      if (!playlistPromise) {
-        // TODO this won't work all the time lol
-        updatePlaylistData(location.href)
-      }
-      if (playlistIsUpdating) {
-        return playlistPromise
-      }
-      return Promise.resolve(playlist)
+  const update = () => {
+    if (location.href.match(setRegex)) {
+      playlistPromise = getAnyPlaylistData(location.href)
     }
+  }
+  onUrlChange(update)
+  update()
+
+  return function getPlaylistData () {
+    return playlistPromise
   }
 })()
 

@@ -6,6 +6,9 @@ const { getIsCollaborative, setIsCollaborative } = (function () {
       // Update isCollaborative
       getPlaylistData()
         .then(playlistData => {
+          if (playlistData == null) {
+            return { isCollaborative: false }
+          }
           const data = {
             type: 'isCollaborativeRequest',
             playlistId: playlistData.id
@@ -44,6 +47,9 @@ const { getCollaborators, setCollaboratorById } = (function () {
       // Update list of collaborators
       getPlaylistData()
         .then(playlistData => {
+            if (playlistData == null) {
+              return { collaborators: {} }
+            }
             const data = {
               type: 'collaboratorsRequest',
               playlistId: playlistData.id
