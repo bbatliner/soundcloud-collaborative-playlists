@@ -55,11 +55,13 @@ chrome.extension.onConnect.addListener(port => {
       if (msg.type === 'isCollaborativeRequest') {
         firebase.database().ref(`collaborativePlaylists/${msg.playlistId}`).once('value', (snapshot) => {
           port.postMessage({
+            messageId: msg.messageId,
             type: 'isCollaborativeResponse',
             isCollaborative: snapshot.val()
           })
         }, (err) => {
           port.postMessage({
+            messageId: msg.messageId,
             type: 'isCollaborativeResponse',
             error: err.message
           })
@@ -70,11 +72,13 @@ chrome.extension.onConnect.addListener(port => {
       if (msg.type === 'collaboratorsRequest') {
         firebase.database().ref(`editPermissions/playlists/${msg.playlistId}`).once('value', (snapshot) => {
           port.postMessage({
+            messageId: msg.messageId,
             type: 'collaboratorsResponse',
             collaborators: snapshot.val()
           })
         }, (err) => {
           port.postMessage({
+            messageId: msg.messageId,
             type: 'collaboratorsResponse',
             error: err.message
           })
@@ -94,11 +98,13 @@ chrome.extension.onConnect.addListener(port => {
       if (msg.type === 'editablePlaylistsRequest') {
         firebase.database().ref(`editPermissions/users/${msg.userId}`).once('value', (snapshot) => {
           port.postMessage({
+            messageId: msg.messageId,
             type: 'editablePlaylistsResponse',
             editablePlaylists: snapshot.val()
           })
         }, (err) => {
           port.postMessage({
+            messageId: msg.messageId,
             type: 'editablePlaylistsResponse',
             error: err.message
           })
@@ -109,6 +115,7 @@ chrome.extension.onConnect.addListener(port => {
       if (msg.type === 'addTrackToPlaylist') {
         firebase.database().ref(`tracks/${msg.playlistId}/${msg.trackId}`).set(true, (err) => {
           const response = {
+            messageId: msg.messageId,
             type: 'addTrackToPlaylistResponse'
           }
           if (err) {
@@ -122,6 +129,7 @@ chrome.extension.onConnect.addListener(port => {
       if (msg.type === 'removeTrackFromPlaylist') {
         firebase.database().ref(`tracks/${msg.playlistId}/${msg.trackId}`).set(false, (err) => {
           const response = {
+            messageId: msg.messageId,
             type: 'removeTrackFromPlaylistResponse'
           }
           if (err) {

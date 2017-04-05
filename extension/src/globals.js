@@ -37,21 +37,27 @@ function createGritter (options) {
   document.getElementById(`gritter-item-${id}`).querySelector('.gritter-close').textContent = ''
 }
 
-function postMessage (port, data, responseType, timeout = 10000) {
-  return new Promise((resolve, reject) => {
-    const rejectTimeout = setTimeout(() => { reject('Timeout') }, timeout)
-    port.onMessage.addListener(msg => {
-      if (msg.type === responseType) {
-        clearTimeout(rejectTimeout)
-        if (msg.error) {
-          return reject(new Error(msg.error))
+const postMessage = (function () {
+  let n = 1
+  return function postMessage (port, data, responseType, timeout = 10000) {
+    return new Promise((resolve, reject) => {
+      const messageId = n++
+      const rejectTimeout = setTimeout(() => { reject('Timeout') }, timeout)
+      port.onMessage.addListener(msg => {
+        if (msg.type === responseType && msg.messageId === messageId) {
+          clearTimeout(rejectTimeout)
+          if (msg.error) {
+            return reject(new Error(msg.error))
+          }
+          return resolve(msg)
         }
-        return resolve(msg)
-      }
+      })
+      data.messageId = messageId
+      port.postMessage(data)
     })
-    port.postMessage(data)
-  })
-}
+  }
+}())
+
 
 function initializeTabSwitching (node) {
   Array.from(node.querySelectorAll('.g-tabs-item')).forEach((tabItem, tabIndex) => {

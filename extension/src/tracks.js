@@ -92,7 +92,6 @@ function createPlaylistListItem (playlistData) {
   const addToPlaylistButton = dom.querySelector('.addToPlaylistButton')
   const count = dom.querySelector('.addToPlaylistItem__count')
   let isWorking = false
-  // TODO: check track already exists in playlistData.tracks (and disable adding)
   addToPlaylistButton.addEventListener('click', () => {
     if (isWorking) {
       return
@@ -199,6 +198,34 @@ const tracksObserver = new MutationObserver(mutations => {
     mutation.addedNodes.forEach(node => {
       // Modal added to DOM
       if (node.classList.contains('modal') && node.querySelector('.addToPlaylistTabs')) {
+        // Add "Collaborative" badges to your own playlists, too!
+        if (node.querySelector('.addToPlaylistList')) {
+          poll(() => node.querySelector('.lazyLoadingList__list:last-child:not(:first-child)'), 10, 5000)
+            .then(list => {
+              // Use Promise.all to parallelize the entire process of data fetching + port messaging,
+              // instead of waiting for each piece of the pipeline to finish entirely
+              return Promise.all(Array.from(list.children).map(li => li.querySelector('a').href).map((url, i) => {
+                return getAnyPlaylistData(url)
+                  .then(playlistData => {
+                    if (playlistData == null) {
+                      return { isCollaborative: false }
+                    }
+                    const data = {
+                      type: 'isCollaborativeRequest',
+                      playlistId: playlistData.id
+                    }
+                    return postMessage(port, data, 'isCollaborativeResponse')
+                  })
+                  .then(response => {
+                    if (response.isCollaborative) {
+                      list.children[i].querySelector('.addToPlaylistItem__data').appendChild(stringToDom(
+                        '<span class="sc-button sc-button-small sc-button-responsive sc-button-cta sc-collaborative-label-small">Collaborative</span>'
+                      ))
+                    }
+                  })
+              }))
+            })
+        }
         // Playlist list
         getEditablePlaylists()
           .then(editablePlaylists => {
