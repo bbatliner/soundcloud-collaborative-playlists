@@ -317,7 +317,14 @@ const setsObserver = new MutationObserver(mutations => {
           if (!collaboratorInput.value || collaboratorInput.value.length === 0) {
             return
           }
-          const a = getAnyUserData(collaboratorInput.value)
+          // Also support adding by profile URL
+          let userId
+          if (collaboratorInput.value.match(/^https:\/\/soundcloud\.com\/[^\/]+$/)) {
+            userId = collaboratorInput.value.substring(collaboratorInput.value.lastIndexOf('/') + 1)
+          } else {
+            userId = collaboratorInput.value
+          }
+          const a = getAnyUserData(userId)
           const b = getUserData()
           const c = getCollaborators()
           const d = Promise.all([a, b, c]).then(([userData, myUserData, collaborators]) => {
@@ -370,26 +377,7 @@ const setsObserver = new MutationObserver(mutations => {
         })
 
         // Do tab switching entirely on our own, because adding a new tab breaks Soundcloud's switching
-        Array.from(node.querySelectorAll('.g-tabs-item')).forEach((tabItem, tabIndex) => {
-          tabItem.addEventListener('click', () => {
-            // Set this link to active
-            Array.from(node.querySelectorAll('.g-tabs-link')).forEach(link => {
-              if (link.parentNode === tabItem) {
-                link.classList.add('active')
-              } else {
-                link.classList.remove('active')
-              }
-            })
-            // Show the correct tab content
-            Array.from(node.querySelectorAll('.tabs__contentSlot')).forEach((tabContent, contentIndex) => {
-              if (tabIndex === contentIndex) {
-                tabContent.style.display = 'block'
-              } else {
-                tabContent.style.display = 'none'
-              }
-            })
-          })
-        })
+        initializeTabSwitching(node)
       }
 
       // Dropdown menu for playlist type added to DOM

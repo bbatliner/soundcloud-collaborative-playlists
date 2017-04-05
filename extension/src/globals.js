@@ -53,6 +53,29 @@ function postMessage (port, data, responseType, timeout = 10000) {
   })
 }
 
+function initializeTabSwitching (node) {
+  Array.from(node.querySelectorAll('.g-tabs-item')).forEach((tabItem, tabIndex) => {
+    tabItem.addEventListener('click', () => {
+      // Set this link to active
+      Array.from(node.querySelectorAll('.g-tabs-link')).forEach(link => {
+        if (link.parentNode === tabItem) {
+          link.classList.add('active')
+        } else {
+          link.classList.remove('active')
+        }
+      })
+      // Show the correct tab content
+      Array.from(node.querySelectorAll('.tabs__contentSlot')).forEach((tabContent, contentIndex) => {
+        if (tabIndex === contentIndex) {
+          tabContent.style.display = 'block'
+        } else {
+          tabContent.style.display = 'none'
+        }
+      })
+    })
+  })
+}
+
 const onUrlChange = (function () {
   const myScript = document.createElement('script')
   myScript.innerHTML = `
@@ -165,6 +188,7 @@ function stringToDom (html) {
     wrapMap.optgroup = wrapMap.option;
     wrapMap.tbody = wrapMap.tfoot = wrapMap.colgroup = wrapMap.caption = wrapMap.thead;
     wrapMap.th = wrapMap.td;
+    html = html.trim();
     var match = /<\s*\w.*?>/g.exec(html);
     var element = document.createElement('div');
     if(match != null) {

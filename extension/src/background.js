@@ -36,6 +36,7 @@ chrome.extension.onConnect.addListener(port => {
       }
 
       if (msg.type === 'markCollaborative') {
+        // TODO: handle errors
         firebase.database().ref(`collaborativePlaylists/${msg.playlistId}`).set(true)
         return
       }
@@ -45,6 +46,8 @@ chrome.extension.onConnect.addListener(port => {
           if (snapshot.exists()) {
             snapshot.ref.set(false)
           }
+        }, (err) => {
+          // TODO: handle err
         })
         return
       }
@@ -54,6 +57,11 @@ chrome.extension.onConnect.addListener(port => {
           port.postMessage({
             type: 'isCollaborativeResponse',
             isCollaborative: snapshot.val()
+          })
+        }, (err) => {
+          port.postMessage({
+            type: 'isCollaborativeResponse',
+            error: err.message
           })
         })
         return
@@ -65,11 +73,17 @@ chrome.extension.onConnect.addListener(port => {
             type: 'collaboratorsResponse',
             collaborators: snapshot.val()
           })
+        }, (err) => {
+          port.postMessage({
+            type: 'collaboratorsResponse',
+            error: err.message
+          })
         })
         return
       }
 
       if (msg.type === 'saveCollaborators') {
+        // TODO: handle errors
         firebase.database().ref(`editPermissions/playlists/${msg.playlistId}`).set(msg.collaborators)
         Object.keys(msg.collaborators).forEach(collaboratorId => {
           firebase.database().ref(`editPermissions/users/${collaboratorId}/${msg.playlistId}`).set(msg.collaborators[collaboratorId])
@@ -82,6 +96,11 @@ chrome.extension.onConnect.addListener(port => {
           port.postMessage({
             type: 'editablePlaylistsResponse',
             editablePlaylists: snapshot.val()
+          })
+        }, (err) => {
+          port.postMessage({
+            type: 'editablePlaylistsResponse',
+            error: err.message
           })
         })
         return
