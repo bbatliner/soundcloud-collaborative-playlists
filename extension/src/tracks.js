@@ -200,7 +200,7 @@ const tracksObserver = new MutationObserver(mutations => {
       if (node.classList.contains('modal') && node.querySelector('.addToPlaylistTabs')) {
         // Add "Collaborative" badges to your own playlists, too!
         if (node.querySelector('.addToPlaylistList')) {
-          poll(() => node.querySelector('.lazyLoadingList__list:last-child:not(:first-child)'), 10, 5000)
+          poll(() => node.querySelector('.lazyLoadingList__list:not(.collaborativeList)'), 10, 5000)
             .then(list => {
               // Use Promise.all to parallelize the entire process of data fetching + port messaging,
               // instead of waiting for each piece of the pipeline to finish entirely
@@ -285,7 +285,7 @@ const tracksObserver = new MutationObserver(mutations => {
                             </div>
                           </div>
                           <div class="addToPlaylistList__list">
-                            <ul class="lazyLoadingList__list sc-list-nostyle sc-clearfix"></ul>
+                            <ul class="collaborativeList lazyLoadingList__list sc-list-nostyle sc-clearfix"></ul>
                           </div>
                         </form>
                       </div>
@@ -306,54 +306,51 @@ const tracksObserver = new MutationObserver(mutations => {
             if (listItems.length === 0) {
               return
             }
-            // Insert into DOM
+            // Insert list items into DOM
             const hr = stringToDom('<hr id="collaborativeDivider">')
             list.parentNode.insertBefore(hr, list)
-            const collaborativeList = stringToDom('<ul class="lazyLoadingList__list sc-list-nostyle sc-clearfix"></ul>')
+            const collaborativeList = stringToDom('<ul class="collaborativeList lazyLoadingList__list sc-list-nostyle sc-clearfix"></ul>')
             list.parentNode.insertBefore(collaborativeList, hr)
             listItems.forEach(listItem => collaborativeList.appendChild(listItem))
-          })
 
-        // Filter input
-        poll(() => node.querySelector('.addToPlaylistList input'), 100, 5000)
-          .then(filter => {
-            const filterInputHandler = () => {
-              // Poll for when the custom list is actually inserted into the DOM (since it's all Promises lol)
-              poll(() => node.querySelector('#collaborativeDivider + ul'), 10, 2000).then(collaborativeList => {
-                const collaborativePlaylists = Array.from(node.querySelectorAll('.sc-collaborative'))
-                collaborativePlaylists.forEach(listItem => {
-                  const filterOnTitle = listItem.querySelector('.addToPlaylistItem__titleLink').title.toLowerCase().startsWith(filter.value.toLowerCase())
-                  const filterOnCollaborative = filter.value.length > 0 && 'collaborative'.startsWith(filter.value.toLowerCase())
-                  if (filterOnTitle || filterOnCollaborative) {
-                    listItem.style.display = ''
+            // Filter input
+            poll(() => node.querySelector('.addToPlaylistList input'), 100, 5000)
+              .then(filter => {
+                const filterInputHandler = () => {
+                  const collaborativePlaylists = Array.from(node.querySelectorAll('.sc-collaborative'))
+                  collaborativePlaylists.forEach(listItem => {
+                    const filterOnTitle = listItem.querySelector('.addToPlaylistItem__titleLink').title.toLowerCase().startsWith(filter.value.toLowerCase())
+                    const filterOnCollaborative = filter.value.length > 0 && 'collaborative'.startsWith(filter.value.toLowerCase())
+                    if (filterOnTitle || filterOnCollaborative) {
+                      listItem.style.display = ''
+                    } else {
+                      listItem.style.display = 'none'
+                    }
+                  })
+                  const hr = document.getElementById('collaborativeDivider')
+                  const noCollaborative = collaborativePlaylists.every(list => list.style.display === 'none')
+                  const onlyCollaborative = collaborativePlaylists.length === 0
+                  if (noCollaborative || onlyCollaborative) {
+                    hr.style.display = 'none'
                   } else {
-                    listItem.style.display = 'none'
+                    hr.style.display = ''
                   }
-                })
-                const noCollaborative = collaborativePlaylists.every(list => list.style.display === 'none')
-                const hr = document.getElementById('collaborativeDivider')
-                const onlyCollaborative = collaborativeList.children.length === 0
-                if (noCollaborative || onlyCollaborative) {
-                  hr.style.display = 'none'
-                } else {
-                  hr.style.display = ''
                 }
-              })
-            }
-            filter.addEventListener('input', filterInputHandler)
-            filterInputHandler()
-          })
-
-        // Clear button
-        poll(() => node.querySelector('.addToPlaylistList button.textfield__clear'), 100, 5000)
-          .then(clear => {
-            clear.addEventListener('click', () => {
-              document.getElementById('collaborativeDivider').style.display = ''
-              const collaborativePlaylists = Array.from(node.querySelectorAll('.sc-collaborative'))
-              collaborativePlaylists.forEach(listItem => {
-                listItem.style.display = ''
-              })
+                filter.addEventListener('input', filterInputHandler)
+                filterInputHandler()
             })
+
+            // Clear button
+            poll(() => node.querySelector('.addToPlaylistList button.textfield__clear'), 100, 5000)
+              .then(clear => {
+                clear.addEventListener('click', () => {
+                  document.getElementById('collaborativeDivider').style.display = ''
+                  const collaborativePlaylists = Array.from(node.querySelectorAll('.sc-collaborative'))
+                  collaborativePlaylists.forEach(listItem => {
+                    listItem.style.display = ''
+                  })
+                })
+              })
           })
       }
     })
