@@ -1,5 +1,5 @@
 const setRegex = /^https:\/\/soundcloud\.com\/[^\/]+\/sets\/[^\/]+$/
-const trackRegex = /^https:\/\/soundcloud\.com\/(?!you)[^\/]+\/[^\/]+(\?in=.*)?$/
+const trackRegex = /^https:\/\/soundcloud\.com\/(?!you|stream)[^\/]+\/[^\/]+(\?in=.*)?$/
 
 // https://davidwalsh.name/javascript-polling
 function poll (fn, interval = 100, timeout = 2000) {

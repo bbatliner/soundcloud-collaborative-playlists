@@ -63,134 +63,144 @@ document.head.appendChild(stringToDom(`<style>
   }
 </style>`))
 
+function getCollaborativeTracks (playlistData) {
+  const data = {
+    type: 'getTracks',
+    playlistId: playlistData.id
+  }
+  return postMessage(port, data, 'getTracksResponse')
+    .then(response => response.tracks)
+}
+
 function createPlaylistListItem (playlistData) {
-  // TODO: number of tracks in the playlist is actually this data + the track data in the Firebase
-  const dom = stringToDom([
-    '<li class="addToPlaylistList__item sc-border-light-top sc-collaborative">',
-      '<div class="addToPlaylistItem g-flex-row-centered">',
-        `<a href="${playlistData.permalink_url}" class="addToPlaylistItem__image" title="${playlistData.title}">`,
-          '<div class="image m-playlist image__lightOutline readOnly sc-artwork sc-artwork-placeholder-9 m-loaded" style="height: 50px; width: 50px;">',
-            `<span style="background-image: url(&quot;${playlistData.artwork_url || playlistData.tracks[0].artwork_url}&quot;); width: 50px; height: 50px; opacity: 1;" class="sc-artwork sc-artwork-placeholder-9 image__full g-opacity-transition" aria-label="test" aria-role="img"></span>`,
-          '</div>',
-        '</a>',
-        '<div class="addToPlaylistItem__content">',
-          '<h3 class="addToPlaylistItem__title sc-truncate">',
-            `<a href="${playlistData.permalink_url}" class="addToPlaylistItem__titleLink sc-link-dark" title="${playlistData.title}">${playlistData.title}</span>`,
+  return Promise.all([getTrackData(), getCollaborativeTracks(playlistData)])
+    .then(([trackData, collaborativeTracks]) => {
+      const num = Object.keys(collaborativeTracks).filter(key => collaborativeTracks[key] === true).length
+      const dom = stringToDom([
+        '<li class="addToPlaylistList__item sc-border-light-top sc-collaborative">',
+          '<div class="addToPlaylistItem g-flex-row-centered">',
+            `<a href="${playlistData.permalink_url}" class="addToPlaylistItem__image" title="${playlistData.title}">`,
+              '<div class="image m-playlist image__lightOutline readOnly sc-artwork sc-artwork-placeholder-9 m-loaded" style="height: 50px; width: 50px;">',
+                `<span style="background-image: url(&quot;${playlistData.artwork_url || playlistData.tracks[0].artwork_url}&quot;); width: 50px; height: 50px; opacity: 1;" class="sc-artwork sc-artwork-placeholder-9 image__full g-opacity-transition" aria-label="test" aria-role="img"></span>`,
+              '</div>',
             '</a>',
-          '</h3>',
-          '<div class="addToPlaylistItem__data">',
-            `<span title="${playlistData.tracks.length} tracks" class="addToPlaylistItem__count sc-ministats sc-ministats-small sc-ministats-sounds"> ${playlistData.tracks.length}</span>`,
-            `<span class="sc-button sc-button-small sc-button-responsive sc-button-cta sc-collaborative-label-small">Collaborative</span>`,
+            '<div class="addToPlaylistItem__content">',
+              '<h3 class="addToPlaylistItem__title sc-truncate">',
+                `<a href="${playlistData.permalink_url}" class="addToPlaylistItem__titleLink sc-link-dark" title="${playlistData.title}">${playlistData.title}</span>`,
+                '</a>',
+              '</h3>',
+              '<div class="addToPlaylistItem__data">',
+                `<span title="${playlistData.tracks.length + num} tracks" class="addToPlaylistItem__count sc-ministats sc-ministats-small sc-ministats-sounds"> ${playlistData.tracks.length + num}</span>`,
+                `<span class="sc-button sc-button-small sc-button-responsive sc-button-cta sc-collaborative-label-small">Collaborative</span>`,
+              '</div>',
+            '</div>',
+            '<div class="addToPlaylistItem__actions g-flex-row-centered">',
+              playlistData.tracks.map(track => track.permalink_url.replace('http:', location.protocol)).includes(`${location.protocol}//${location.host}${location.pathname}`) ? '<button class="addToPlaylistButton sc-button sc-button-medium sc-button-responsive sc-button-selected" tabindex="0" title="Remove">Added</button>' : '<button class="addToPlaylistButton sc-button sc-button-medium sc-button-responsive" tabindex="0" title="Add to playlist">Add to playlist</button>',
+            '</div>',
           '</div>',
-        '</div>',
-        '<div class="addToPlaylistItem__actions g-flex-row-centered">',
-          playlistData.tracks.map(track => track.permalink_url.replace('http:', location.protocol)).includes(`${location.protocol}//${location.host}${location.pathname}`) ? '<button class="addToPlaylistButton sc-button sc-button-medium sc-button-responsive sc-button-selected" tabindex="0" title="Remove">Added</button>' : '<button class="addToPlaylistButton sc-button sc-button-medium sc-button-responsive" tabindex="0" title="Add to playlist">Add to playlist</button>',
-        '</div>',
-      '</div>',
-    '</li>'
-  ].join(''))
-  const addToPlaylistButton = dom.querySelector('.addToPlaylistButton')
-  const count = dom.querySelector('.addToPlaylistItem__count')
-  let isWorking = false
-  addToPlaylistButton.addEventListener('click', () => {
-    if (isWorking) {
-      return
-    }
-    const currentCount = parseInt(count.textContent, 10)
-    if (addToPlaylistButton.textContent === 'Add to playlist') {
-      isWorking = true
-      // Immediately update button
-      addToPlaylistButton.textContent = 'Added'
-      addToPlaylistButton.classList.add('sc-button-selected')
-      addToPlaylistButton.title = 'Remove'
-      count.title = `${currentCount + 1} tracks`
-      count.textContent = ` ${currentCount + 1}`
-      // Then actually add to playlist
-      const a = getTrackData()
-      const b = a.then(trackData => {
-        const data = {
-          type: 'addTrackToPlaylist',
-          playlistId: playlistData.id,
-          trackId: trackData.id
+        '</li>'
+      ].join(''))
+      const addToPlaylistButton = dom.querySelector('.addToPlaylistButton')
+      const count = dom.querySelector('.addToPlaylistItem__count')
+      let isWorking = false
+      addToPlaylistButton.addEventListener('click', () => {
+        if (isWorking) {
+          return
         }
-        return postMessage(port, data, 'addTrackToPlaylistResponse')
-      })
-      Promise.all([a, b])
-        .then(([trackData]) => {
-          createGritter({
-            title: trackData.title,
-            text: `was added to <a href="${playlistData.permalink_url}">${playlistData.title}</a>.`,
-            image: playlistData.artwork_url || playlistData.tracks[0].artwork_url
-          })
-          isWorking = false
-        })
-        .catch(() => {
-          createGritter({
-            title: 'Something went wrong :(',
-            text: 'Couldn\'t add track to playlist.',
-            image: playlistData.artwork_url || playlistData.tracks[0].artwork_url
-          })
-          // Revert button to old state
-          addToPlaylistButton.textContent = 'Add to playlist'
-          addToPlaylistButton.classList.remove('sc-button-selected')
-          addToPlaylistButton.title = 'Add to playlist'
-          count.title = `${currentCount} tracks`
-          count.textContent = ` ${currentCount}`
-          isWorking = false
-        })
-      return
-    }
-    if (addToPlaylistButton.textContent === 'Added') {
-      isWorking = true
-      // Immediately update button
-      addToPlaylistButton.textContent = 'Add to playlist'
-      addToPlaylistButton.classList.remove('sc-button-selected')
-      addToPlaylistButton.title = 'Add to playlist'
-      count.title = `${currentCount - 1} tracks`
-      count.textContent = ` ${currentCount - 1}`
-      // Then actually remove from playlist
-      const a = getAnyTrackData(location.href)
-      const b = a.then(trackData => {
-        const data = {
-          type: 'removeTrackFromPlaylist',
-          playlistId: playlistData.id,
-          trackId: trackData.id
-        }
-        return postMessage(port, data, 'removeTrackFromPlaylistResponse')
-      })
-      Promise.all([a, b])
-        .then(([trackData]) => {
-          addToPlaylistButton.textContent = 'Add to playlist'
-          addToPlaylistButton.classList.remove('sc-button-selected')
-          addToPlaylistButton.title = 'Add to playlist'
-          isWorking = false
-        })
-        .catch(() => {
-          createGritter({
-            title: 'Something went wrong :(',
-            text: 'Couldn\'t remove track from playlist.',
-            image: playlistData.artwork_url || playlistData.tracks[0].artwork_url
-          })
-          // Revert button to old state
+        const currentCount = parseInt(count.textContent, 10)
+        if (addToPlaylistButton.textContent === 'Add to playlist') {
+          isWorking = true
+          // Immediately update button
           addToPlaylistButton.textContent = 'Added'
           addToPlaylistButton.classList.add('sc-button-selected')
           addToPlaylistButton.title = 'Remove'
-          count.title = `${currentCount} tracks`
-          count.textContent = ` ${currentCount}`
-          isWorking = false
-        })
-      return
-    }
-    throw new Error('addToPlaylistButton had unexpected textContent')
-  })
-  return getTrackData().then(trackData => {
-    if (playlistData.tracks.map(track => track.id).includes(trackData.id)) {
-      addToPlaylistButton.disabled = true
-      addToPlaylistButton.textContent = 'Added by owner'
-      addToPlaylistButton.title = 'Added by owner'
-    }
-    return dom
-  })
+          count.title = `${currentCount + 1} tracks`
+          count.textContent = ` ${currentCount + 1}`
+          // Then actually add to playlist
+          const a = getTrackData()
+          const b = a.then(trackData => {
+            const data = {
+              type: 'addTrackToPlaylist',
+              playlistId: playlistData.id,
+              trackId: trackData.id
+            }
+            return postMessage(port, data, 'addTrackToPlaylistResponse')
+          })
+          Promise.all([a, b])
+            .then(([trackData]) => {
+              createGritter({
+                title: trackData.title,
+                text: `was added to <a href="${playlistData.permalink_url}">${playlistData.title}</a>.`,
+                image: playlistData.artwork_url || playlistData.tracks[0].artwork_url
+              })
+              isWorking = false
+            })
+            .catch(() => {
+              createGritter({
+                title: 'Something went wrong :(',
+                text: 'Couldn\'t add track to playlist.',
+                image: playlistData.artwork_url || playlistData.tracks[0].artwork_url
+              })
+              // Revert button to old state
+              addToPlaylistButton.textContent = 'Add to playlist'
+              addToPlaylistButton.classList.remove('sc-button-selected')
+              addToPlaylistButton.title = 'Add to playlist'
+              count.title = `${currentCount} tracks`
+              count.textContent = ` ${currentCount}`
+              isWorking = false
+            })
+          return
+        }
+        if (addToPlaylistButton.textContent === 'Added') {
+          isWorking = true
+          // Immediately update button
+          addToPlaylistButton.textContent = 'Add to playlist'
+          addToPlaylistButton.classList.remove('sc-button-selected')
+          addToPlaylistButton.title = 'Add to playlist'
+          count.title = `${currentCount - 1} tracks`
+          count.textContent = ` ${currentCount - 1}`
+          // Then actually remove from playlist
+          const a = getAnyTrackData(location.href)
+          const b = a.then(trackData => {
+            const data = {
+              type: 'removeTrackFromPlaylist',
+              playlistId: playlistData.id,
+              trackId: trackData.id
+            }
+            return postMessage(port, data, 'removeTrackFromPlaylistResponse')
+          })
+          Promise.all([a, b])
+            .then(([trackData]) => {
+              addToPlaylistButton.textContent = 'Add to playlist'
+              addToPlaylistButton.classList.remove('sc-button-selected')
+              addToPlaylistButton.title = 'Add to playlist'
+              isWorking = false
+            })
+            .catch(() => {
+              createGritter({
+                title: 'Something went wrong :(',
+                text: 'Couldn\'t remove track from playlist.',
+                image: playlistData.artwork_url || playlistData.tracks[0].artwork_url
+              })
+              // Revert button to old state
+              addToPlaylistButton.textContent = 'Added'
+              addToPlaylistButton.classList.add('sc-button-selected')
+              addToPlaylistButton.title = 'Remove'
+              count.title = `${currentCount} tracks`
+              count.textContent = ` ${currentCount}`
+              isWorking = false
+            })
+          return
+        }
+        throw new Error('addToPlaylistButton had unexpected textContent')
+      })
+      if (playlistData.tracks.map(track => track.id).includes(trackData.id)) {
+        addToPlaylistButton.disabled = true
+        addToPlaylistButton.textContent = 'Added by owner'
+        addToPlaylistButton.title = 'Added by owner'
+      }
+      return dom
+    })
 }
 
 const tracksObserver = new MutationObserver(mutations => {
@@ -205,23 +215,33 @@ const tracksObserver = new MutationObserver(mutations => {
               // Use Promise.all to parallelize the entire process of data fetching + port messaging,
               // instead of waiting for each piece of the pipeline to finish entirely
               return Promise.all(Array.from(list.children).map(li => li.querySelector('a').href).map((url, i) => {
-                return getAnyPlaylistData(url)
-                  .then(playlistData => {
-                    if (playlistData == null) {
-                      return { isCollaborative: false }
-                    }
-                    const data = {
-                      type: 'isCollaborativeRequest',
-                      playlistId: playlistData.id
-                    }
-                    return postMessage(port, data, 'isCollaborativeResponse')
-                  })
-                  .then(response => {
+                const a = getAnyPlaylistData(url)
+                const b = a.then(playlistData => {
+                  if (playlistData == null) {
+                    return { isCollaborative: false }
+                  }
+                  const data = {
+                    type: 'isCollaborativeRequest',
+                    playlistId: playlistData.id
+                  }
+                  return postMessage(port, data, 'isCollaborativeResponse')
+                })
+                return Promise.all([a, b])
+                  .then(([playlistData, response]) => {
                     if (response.isCollaborative) {
                       list.children[i].querySelector('.addToPlaylistItem__data').appendChild(stringToDom(
                         '<span class="sc-button sc-button-small sc-button-responsive sc-button-cta sc-collaborative-label-small">Collaborative</span>'
                       ))
+                      return getCollaborativeTracks(playlistData)
                     }
+                    return {}
+                  })
+                  .then(collaborativeTracks => {
+                    const num = Object.keys(collaborativeTracks).filter(key => collaborativeTracks[key] === true).length
+                    const count = list.children[i].querySelector('.addToPlaylistItem__count')
+                    const currentCount = parseInt(count.textContent, 10)
+                    count.textContent = ` ${currentCount + num}`
+                    count.title = `${currentCount + num} tracks`
                   })
               }))
             })
