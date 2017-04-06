@@ -80,10 +80,35 @@ const { getCollaborators, setCollaboratorById } = (function () {
   }
 }())
 
+const getCollaborativeTracks = (function () {
+  function getPromise () {
+    return getPlaylistData()
+      .then(playlistData => {
+        if (playlistData == null) {
+          return { tracks: {} }
+        }
+        const data = {
+          type: 'getTracks',
+          playlistId: playlistData.id
+        }
+        return postMessage(port, data, 'getTracksResponse')
+      })
+      .then(response => response.tracks || {})
+  }
+  let getCollaborativeTracksPromise = getPromise()
+  onUrlChange(() => {
+    if (location.href.match(setRegex)) {
+      getCollaborativeTracksPromise = getPromise()
+    }
+  })
+  return () => getCollaborativeTracksPromise
+}())
+
+
 // Show "Collaborative" indicator
 function showCollaborative () {
-  Promise.all([getIsCollaborative(), getCollaborators()])
-    .then(([isCollaborative, collaborators]) => {
+  getIsCollaborative()
+    .then(isCollaborative => {
       if (isCollaborative) {
         document.querySelector('.fullHero__uploadTime').appendChild(stringToDom('<span class="sc-button sc-button-responsive sc-button-cta sc-collaborative-label" style="margin-top: 2px">Collaborative</span>'))
       }
@@ -96,9 +121,49 @@ onUrlChange(() => {
 })
 showCollaborative()
 
+// Load collaborative tracks!
+function showCollaborativeTracks () {
+  const collaborativeTracksPromise = getCollaborativeTracks()
+  getCollaborativeTracks()
+    .then(collaborativeTracks => {
+      const listPromise = poll(() => document.querySelector('.trackList__list'), 10, 5000)
+      const collaborativeTracksArrPromise = Promise.all(
+        Object.keys(collaborativeTracks).filter(key => collaborativeTracks[key] !== false).map(getAnyTrackDataById)
+      )
+      return Promise.all([listPromise, collaborativeTracksArrPromise])
+    })
+    .then(([list, collaborativeTracksArr]) => {
+      if (collaborativeTracksArr.length === 0) {
+        return
+      }
+      // Insert list items into DOM
+      const hr = stringToDom('<hr id="collaborativeTrackDivider">')
+      list.parentNode.insertBefore(hr, list)
+      const collaborativeList = stringToDom('<ul class="collaborativeTrackList sc-list-nostyle sc-clearfix"></ul>')
+      list.parentNode.insertBefore(collaborativeList, hr)
+      collaborativeTracksArr.map(createTrackListItem).forEach(listItem => collaborativeList.appendChild(listItem))
+    })
+}
+onUrlChange(() => {
+  if (location.href.match(setRegex)) {
+    showCollaborativeTracks()
+  }
+})
+showCollaborativeTracks()
+
 // DOM helpers
 const ctaButtonSelector = '.audibleEditForm__formButtons .sc-button-cta'
 const cancelButtonSelector = '.audibleEditForm__formButtons .sc-button[title="Cancel"]'
+
+// Inject some dank CSS
+document.head.appendChild(stringToDom(`<style>
+  .collaborativeTrackList .trackList__item:last-child {
+    border-bottom: 0
+  }
+  .editTrackList__list:not(:empty) {
+    margin-bottom: 15px
+  }
+</style>`))
 
 function getPlaylistArtworkUrl () {
   const meta = document.head.querySelector('meta[property="twitter:image"]')
@@ -110,6 +175,49 @@ function getPlaylistArtworkUrl () {
     return artwork.style.backgroundImage.slice(5, -2)
   }
   throw new Error('Unable to find playlist artwork url')
+}
+
+function createTrackListItem (trackData) {
+  // TODO: who added the track data (stored in firebase)
+  trackData.added_by = {}
+  const dom = stringToDom([
+    '<li class="trackList__item sc-border-light-bottom">',
+      '<div class="trackItem g-flex-row sc-type-small sc-type-light">',
+        '<div class="trackItem__image">',
+          '<div class="image m-sound image__lightOutline readOnly customImage sc-artwork sc-artwork-placeholder-10 m-loaded" style="height: 30px; width: 30px;">',
+            `<span style="background-image: url(&quot;${trackData.artwork_url}&quot;); width: 30px; height: 30px; opacity: 1;" class="sc-artwork sc-artwork-placeholder-10  image__full g-opacity-transition" aria-label="${trackData.title}" aria-role="img"></span>`,
+          '</div>',
+          '<div class="trackItem__play">',
+            '<button class="sc-button-play playButton sc-button sc-button-small" tabindex="0" title="Play">Play</button>',
+          '</div>',
+        '</div>',
+        '<div class="trackItem__image">',
+          `<a href="/${trackData.added_by.permalink}" rel="nofollow" class="g-avatar-badge-avatar-link">`,
+            `<div class="image m-user readOnly customImage sc-artwork sc-artwork-placeholder-5 image__rounded m-loaded" style="height: 30px; width: 30px;" title="Added by ${trackData.added_by.username}"><span style="background-image: url(&quot;${trackData.added_by.avatar_url}&quot;); width: 30px; height: 30px; opacity: 1;" class="sc-artwork sc-artwork-placeholder-5 image__rounded image__full g-opacity-transition" aria-label="${trackData.added_by.username}’s avatar" aria-role="img"></span></div>`,
+          '</a>',
+        '</div>',
+        '<div class="trackItem__content sc-truncate">',
+          `<a href="${trackData.user.permalink_url.replace(/http(s?):\/\/soundcloud\.com/, '')}" class="trackItem__username sc-link-light">${trackData.user.username}</a> `,
+          '<span class="sc-type-light">—</span> ',
+          `<a href="${trackData.permalink_url.replace(/http(s?):\/\/soundcloud\.com/, '')}" class="trackItem__trackTitle sc-link-dark sc-font-light">${trackData.title}</a>`,
+        '</div>',
+        '<div class="trackItem__additional">',
+          '<span class="trackItem__tierIndicator g-go-plus-marker-list sc-hidden"></span>',
+          `<span class="trackItem__playCount sc-ministats sc-ministats-medium sc-ministats-plays">${abbreviateNumber(trackData.playback_count).toUpperCase()}</span>`,
+          '<div class="trackItem__actions">',
+            '<div class="soundActions sc-button-toolbar soundActions__small">',
+              '<div class="sc-button-group sc-button-group-small">',
+                '<button class="sc-button-like sc-button sc-button-small sc-button-responsive sc-button-icon" aria-describedby="tooltip-134" tabindex="0" title="Like">Like</button>',
+                '<button class="sc-button-repost sc-button sc-button-small sc-button-responsive sc-button-icon" aria-describedby="tooltip-136" tabindex="0" aria-haspopup="true" role="button" aria-owns="dropdown-button-137" title="Repost">Repost</button>',
+                '<button class="sc-button sc-button-small sc-button-responsive sc-button-icon sc-button-addtoset" tabindex="0" aria-describedby="tooltip-139" title="Add to playlist">Add to playlist</button>',
+              '</div>',
+            '</div>',
+          '</div>',
+        '</div>',
+      '</div>',
+    '</li>'
+  ].join(''))
+  return dom
 }
 
 function createCollaboratorListItem (userData, isNew) {
@@ -271,9 +379,6 @@ const setsObserver = new MutationObserver(mutations => {
               .forEach(listItem => list.appendChild(listItem))
           })
         tab.appendChild(list)
-
-        // Inject some dank CSS
-        document.head.appendChild(stringToDom('<style>.editTrackList__list:not(:empty) { margin-bottom: 15px }</style>'))
 
         // "Add Collaborator" input
         const input = stringToDom([

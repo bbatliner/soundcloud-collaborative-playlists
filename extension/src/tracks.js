@@ -49,6 +49,7 @@ document.head.appendChild(stringToDom(`<style>
     height: 26px;
     line-height: 1.5;
     user-select: initial;
+    cursor: default;
   }
   .sc-collaborative-label-small {
     padding: 1px 4px;
@@ -56,6 +57,7 @@ document.head.appendChild(stringToDom(`<style>
     height: 16px;
     line-height: 1.2;
     user-select: initial;
+    cursor: default;
   }
   .sc-collaborative-label:hover,
   .sc-collaborative-label-small:hover {
@@ -63,30 +65,30 @@ document.head.appendChild(stringToDom(`<style>
   }
 </style>`))
 
-function getCollaborativeTracks (playlistData) {
+function getCollaborativeTracksByPlaylistId (playlistId) {
   const data = {
     type: 'getTracks',
-    playlistId: playlistData.id
+    playlistId: playlistId
   }
   return postMessage(port, data, 'getTracksResponse')
-    .then(response => response.tracks)
+    .then(response => response.tracks || {})
 }
 
 function createPlaylistListItem (playlistData) {
-  return Promise.all([getTrackData(), getCollaborativeTracks(playlistData)])
+  return Promise.all([getTrackData(), getCollaborativeTracksByPlaylistId(playlistData.id)])
     .then(([trackData, collaborativeTracks]) => {
       const num = Object.keys(collaborativeTracks).filter(key => collaborativeTracks[key] === true).length
       const dom = stringToDom([
         '<li class="addToPlaylistList__item sc-border-light-top sc-collaborative">',
           '<div class="addToPlaylistItem g-flex-row-centered">',
-            `<a href="${playlistData.permalink_url}" class="addToPlaylistItem__image" title="${playlistData.title}">`,
+            `<a href="${playlistData.permalink_url.replace(/http(s?):/, '')}" class="addToPlaylistItem__image" title="${playlistData.title}">`,
               '<div class="image m-playlist image__lightOutline readOnly sc-artwork sc-artwork-placeholder-9 m-loaded" style="height: 50px; width: 50px;">',
                 `<span style="background-image: url(&quot;${playlistData.artwork_url || playlistData.tracks[0].artwork_url}&quot;); width: 50px; height: 50px; opacity: 1;" class="sc-artwork sc-artwork-placeholder-9 image__full g-opacity-transition" aria-label="test" aria-role="img"></span>`,
               '</div>',
             '</a>',
             '<div class="addToPlaylistItem__content">',
               '<h3 class="addToPlaylistItem__title sc-truncate">',
-                `<a href="${playlistData.permalink_url}" class="addToPlaylistItem__titleLink sc-link-dark" title="${playlistData.title}">${playlistData.title}</span>`,
+                `<a href="${playlistData.permalink_url.replace(/http(s?):/, '')}" class="addToPlaylistItem__titleLink sc-link-dark" title="${playlistData.title}">${playlistData.title}</span>`,
                 '</a>',
               '</h3>',
               '<div class="addToPlaylistItem__data">',
@@ -130,7 +132,7 @@ function createPlaylistListItem (playlistData) {
             .then(([trackData]) => {
               createGritter({
                 title: trackData.title,
-                text: `was added to <a href="${playlistData.permalink_url}">${playlistData.title}</a>.`,
+                text: `was added to <a href="${playlistData.permalink_url.replace(/http(s?):/, '')}">${playlistData.title}</a>.`,
                 image: playlistData.artwork_url || playlistData.tracks[0].artwork_url
               })
               isWorking = false
@@ -210,7 +212,7 @@ const tracksObserver = new MutationObserver(mutations => {
       if (node.classList.contains('modal') && node.querySelector('.addToPlaylistTabs')) {
         // Add "Collaborative" badges to your own playlists, too!
         if (node.querySelector('.addToPlaylistList')) {
-          poll(() => node.querySelector('.lazyLoadingList__list:not(.collaborativeList)'), 10, 5000)
+          poll(() => node.querySelector('.lazyLoadingList__list:not(.collaborativeSetList)'), 10, 5000)
             .then(list => {
               // Use Promise.all to parallelize the entire process of data fetching + port messaging,
               // instead of waiting for each piece of the pipeline to finish entirely
@@ -232,7 +234,7 @@ const tracksObserver = new MutationObserver(mutations => {
                       list.children[i].querySelector('.addToPlaylistItem__data').appendChild(stringToDom(
                         '<span class="sc-button sc-button-small sc-button-responsive sc-button-cta sc-collaborative-label-small">Collaborative</span>'
                       ))
-                      return getCollaborativeTracks(playlistData)
+                      return getCollaborativeTracksByPlaylistId(playlistData.id)
                     }
                     return {}
                   })
@@ -305,7 +307,7 @@ const tracksObserver = new MutationObserver(mutations => {
                             </div>
                           </div>
                           <div class="addToPlaylistList__list">
-                            <ul class="collaborativeList lazyLoadingList__list sc-list-nostyle sc-clearfix"></ul>
+                            <ul class="collaborativeSetList lazyLoadingList__list sc-list-nostyle sc-clearfix"></ul>
                           </div>
                         </form>
                       </div>
@@ -327,9 +329,9 @@ const tracksObserver = new MutationObserver(mutations => {
               return
             }
             // Insert list items into DOM
-            const hr = stringToDom('<hr id="collaborativeDivider">')
+            const hr = stringToDom('<hr id="collaborativeSetDivider">')
             list.parentNode.insertBefore(hr, list)
-            const collaborativeList = stringToDom('<ul class="collaborativeList lazyLoadingList__list sc-list-nostyle sc-clearfix"></ul>')
+            const collaborativeList = stringToDom('<ul class="collaborativeSetList lazyLoadingList__list sc-list-nostyle sc-clearfix"></ul>')
             list.parentNode.insertBefore(collaborativeList, hr)
             listItems.forEach(listItem => collaborativeList.appendChild(listItem))
 
@@ -347,7 +349,7 @@ const tracksObserver = new MutationObserver(mutations => {
                       listItem.style.display = 'none'
                     }
                   })
-                  const hr = document.getElementById('collaborativeDivider')
+                  const hr = document.getElementById('collaborativeSetDivider')
                   const noCollaborative = collaborativePlaylists.every(list => list.style.display === 'none')
                   const onlyCollaborative = collaborativePlaylists.length === 0
                   if (noCollaborative || onlyCollaborative) {
@@ -364,7 +366,7 @@ const tracksObserver = new MutationObserver(mutations => {
             poll(() => node.querySelector('.addToPlaylistList button.textfield__clear'), 100, 5000)
               .then(clear => {
                 clear.addEventListener('click', () => {
-                  document.getElementById('collaborativeDivider').style.display = ''
+                  document.getElementById('collaborativeSetDivider').style.display = ''
                   const collaborativePlaylists = Array.from(node.querySelectorAll('.sc-collaborative'))
                   collaborativePlaylists.forEach(listItem => {
                     listItem.style.display = ''
