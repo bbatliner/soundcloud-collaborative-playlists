@@ -139,8 +139,8 @@ function showCollaborativeTracks () {
       // Insert list items into DOM
       const hr = stringToDom('<hr id="collaborativeTrackDivider">')
       list.parentNode.insertBefore(hr, list)
-      const collaborativeList = stringToDom('<ul class="collaborativeTrackList sc-list-nostyle sc-clearfix"></ul>')
-      list.parentNode.insertBefore(collaborativeList, hr)
+      const collaborativeList = stringToDom('<ul class="collaborativeTrackList trackList__list sc-list-nostyle sc-clearfix"></ul>')
+      list.parentNode.insertBefore(collaborativeList, list.parentNode.children[0])
       collaborativeTracksArr.map(createTrackListItem).forEach(listItem => collaborativeList.appendChild(listItem))
     })
 }
@@ -151,15 +151,51 @@ onUrlChange(() => {
 })
 showCollaborativeTracks()
 
+// Replace all the tracks on the page with our custom ones
+function replaceNormalTracks () {
+  const normalTrackListPromise = poll(() => document.querySelector('.trackList__list:not(.collaborativeTrackList)'), 10, 2000)
+  Promise.all([normalTrackListPromise, getIsCollaborative()])
+    .then(([normalTrackList, isCollaborative]) => {
+      if (!isCollaborative) {
+        return
+      }
+      // Use Promise.all to parallelize the data fetching, while not blocking the DOM rendering
+      return Promise.all(
+        Array.from(normalTrackList.children).map(listItem => {
+          return Promise.all([getUserData(), getAnyTrackData(listItem.querySelector('.trackItem__trackTitle').href), getPlaylistData()])
+            .then(([userData, trackData, playlistData]) => {
+              Object.assign(trackData, {
+                added_by: userData
+              })
+              listItem.parentNode.replaceChild(createTrackListItem(trackData), listItem)
+            })
+        })
+      )
+    })
+}
+onUrlChange(() => {
+  if (location.href.match(setRegex)) {
+    replaceNormalTracks()
+  }
+})
+replaceNormalTracks()
+
+// Override the playControls visible on every page
+function overridePlayControls () {
+  const playControls = document.querySelector('.playControls')
+  document.querySelector('.playControls__play').addEventListener('click', doNothing)
+}
+overridePlayControls()
+
+// TODO: override "x tracks : time" display on set page
+// TODO: consider overriding track counts on other pages (namely /you/sets but also in the "Playlists from this user" section)
+
 // DOM helpers
 const ctaButtonSelector = '.audibleEditForm__formButtons .sc-button-cta'
 const cancelButtonSelector = '.audibleEditForm__formButtons .sc-button[title="Cancel"]'
 
 // Inject some dank CSS
 document.head.appendChild(stringToDom(`<style>
-  .collaborativeTrackList .trackList__item:last-child {
-    border-bottom: 0
-  }
   .editTrackList__list:not(:empty) {
     margin-bottom: 15px
   }
@@ -177,9 +213,27 @@ function getPlaylistArtworkUrl () {
   throw new Error('Unable to find playlist artwork url')
 }
 
+function setPageAlbumArt (url) {
+  const albumArt = document.querySelector('.listenArtworkWrapper span.sc-artwork')
+  if (albumArt.style.backgroundImage.match(url)) {
+    return
+  }
+  albumArt.style.opacity = 0
+  const minFutureTime = Date.now() + 300
+  const img = new Image()
+  img.onload = function onBgLoad () {
+    if (Date.now() < minFutureTime) {
+      return setTimeout(onBgLoad, minFutureTime - Date.now())
+    }
+    albumArt.style.backgroundImage = `url("${img.src}")`
+    albumArt.style.opacity = 1
+  }
+  img.src = url
+}
+
 function createTrackListItem (trackData) {
   // TODO: who added the track data (stored in firebase)
-  trackData.added_by = {}
+  trackData.added_by = trackData.added_by || {}
   const dom = stringToDom([
     '<li class="trackList__item sc-border-light-bottom">',
       '<div class="trackItem g-flex-row sc-type-small sc-type-light">',
@@ -188,7 +242,7 @@ function createTrackListItem (trackData) {
             `<span style="background-image: url(&quot;${trackData.artwork_url}&quot;); width: 30px; height: 30px; opacity: 1;" class="sc-artwork sc-artwork-placeholder-10  image__full g-opacity-transition" aria-label="${trackData.title}" aria-role="img"></span>`,
           '</div>',
           '<div class="trackItem__play">',
-            '<button class="sc-button-play playButton sc-button sc-button-small" tabindex="0" title="Play">Play</button>',
+            `<button class="sc-button-play playButton sc-button sc-button-small" tabindex="0" title="Play">Play</button>`,
           '</div>',
         '</div>',
         '<div class="trackItem__image">',
@@ -209,7 +263,6 @@ function createTrackListItem (trackData) {
               '<div class="sc-button-group sc-button-group-small">',
                 '<button class="sc-button-like sc-button sc-button-small sc-button-responsive sc-button-icon" aria-describedby="tooltip-134" tabindex="0" title="Like">Like</button>',
                 '<button class="sc-button-repost sc-button sc-button-small sc-button-responsive sc-button-icon" aria-describedby="tooltip-136" tabindex="0" aria-haspopup="true" role="button" aria-owns="dropdown-button-137" title="Repost">Repost</button>',
-                '<button class="sc-button sc-button-small sc-button-responsive sc-button-icon sc-button-addtoset" tabindex="0" aria-describedby="tooltip-139" title="Add to playlist">Add to playlist</button>',
               '</div>',
             '</div>',
           '</div>',
@@ -217,6 +270,50 @@ function createTrackListItem (trackData) {
       '</div>',
     '</li>'
   ].join(''))
+
+  // Handle hover classes
+  const trackItem = dom.querySelector('.trackItem')
+  trackItem.addEventListener('mouseover', () => trackItem.classList.add('hover'))
+  trackItem.addEventListener('mouseout', () => trackItem.classList.remove('hover'))
+
+  // The play button is very important!
+  const playButton = dom.querySelector('.playButton')
+
+  // Handle if this track is already playing
+  const activePlayer = getActivePlayer()
+  if (activePlayer != null && activePlayer.options.soundId === trackData.id) {
+    playButton.classList.add('sc-button-pause')
+    setPageAlbumArt(trackData.artwork_url.replace('-large', '-t500x500'))
+    trackItem.classList.add('active')
+  }
+
+  // Handle play button click
+  let isWorking = false
+  playButton.addEventListener('click', () => {
+    if (isWorking) {
+      return
+    }
+    isWorking = true
+    // Show play controls
+    document.querySelector('.playControls').classList.add('m-visible')
+    // Toggle this track playing
+    getPlayerByTrackId(trackData.id).then(player => {
+      player.toggle()
+      isWorking = false
+    })
+    // Update all the play buttons in the track list
+    Array.from(document.querySelectorAll('.trackList__list .playButton')).forEach(button => {
+      if (button === playButton) {
+        button.classList.toggle('sc-button-pause')
+        getClosest('.trackItem', button).classList.toggle('active')
+      } else {
+        button.classList.remove('sc-button-pause')
+        getClosest('.trackItem', button).classList.remove('active')
+      }
+    })
+    // Update the big album art
+    setPageAlbumArt(trackData.artwork_url.replace('-large', '-t500x500'))
+  })
   return dom
 }
 

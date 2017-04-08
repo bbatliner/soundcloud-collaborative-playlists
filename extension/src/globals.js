@@ -1,3 +1,4 @@
+const CLIENT_ID = 'z8LRYFPM4UK5MMLaBe9vixfph5kqNA25'
 const setRegex = /^https:\/\/soundcloud\.com\/[^\/]+\/sets\/[^\/]+$/
 const trackRegex = /^https:\/\/soundcloud\.com\/(?!you|stream)[^\/]+\/[^\/]+(\?in=.*)?$/
 
@@ -116,37 +117,37 @@ const onUrlChange = (function () {
 }())
 
 function getAnyUserDataById (userId) {
-  return fetch(`https://api.soundcloud.com/users/${userId}.json?client_id=z8LRYFPM4UK5MMLaBe9vixfph5kqNA25`)
+  return fetch(`https://api.soundcloud.com/users/${userId}.json?client_id=${CLIENT_ID}`)
     .then(checkStatus)
     .then(response => response.json())
 }
 
 function getAnyUserData (permalink) {
-  return fetch(`https://api.soundcloud.com/resolve.json?url=https://soundcloud.com/${permalink}&client_id=z8LRYFPM4UK5MMLaBe9vixfph5kqNA25`)
+  return fetch(`https://api.soundcloud.com/resolve.json?url=https://soundcloud.com/${permalink}&client_id=${CLIENT_ID}`)
     .then(checkStatus)
     .then(response => response.json())
 }
 
 function getAnyPlaylistDataById (playlistId) {
-  return fetch(`https://api.soundcloud.com/playlists/${playlistId}.json?client_id=z8LRYFPM4UK5MMLaBe9vixfph5kqNA25`)
+  return fetch(`https://api.soundcloud.com/playlists/${playlistId}.json?client_id=${CLIENT_ID}`)
     .then(checkStatus)
     .then(response => response.json())
 }
 
 function getAnyPlaylistData (url) {
-  return fetch(`https://api.soundcloud.com/resolve.json?url=${url}&client_id=z8LRYFPM4UK5MMLaBe9vixfph5kqNA25`)
+  return fetch(`https://api.soundcloud.com/resolve.json?url=${url}&client_id=${CLIENT_ID}`)
     .then(checkStatus)
     .then(response => response.json())
 }
 
 function getAnyTrackDataById (trackId) {
-  return fetch(`https://api.soundcloud.com/tracks/${trackId}.json?client_id=z8LRYFPM4UK5MMLaBe9vixfph5kqNA25`)
+  return fetch(`https://api.soundcloud.com/tracks/${trackId}.json?client_id=${CLIENT_ID}`)
     .then(checkStatus)
     .then(response => response.json())
 }
 
 function getAnyTrackData (url) {
-  return fetch(`https://api.soundcloud.com/resolve.json?url=${url}&client_id=z8LRYFPM4UK5MMLaBe9vixfph5kqNA25`)
+  return fetch(`https://api.soundcloud.com/resolve.json?url=${url}&client_id=${CLIENT_ID}`)
     .then(checkStatus)
     .then(response => response.json())
 }
@@ -165,7 +166,7 @@ const getUserData = (function () {
     }
     return userPromise
   }
-})()
+}())
 
 const getPlaylistData = (function () {
   let playlistPromise = Promise.resolve(null)
@@ -181,11 +182,79 @@ const getPlaylistData = (function () {
   return function getPlaylistData () {
     return playlistPromise
   }
-})()
+}())
+
+SC.initialize({
+  client_id: `${CLIENT_ID}`,
+  redirect_uri: 'http://developers.soundcloud.com/callback.html'
+  // redirect_uri: 'https://collaborative-playlists.firebaseapp.com/popup.html' 
+})
+
+// Configure the SDK
+;(function (global) {
+  // Players dictionary
+  let players = {}
+  let lastActive
+  function getPlayers () {
+    return Object.keys(players).map(key => players[key])
+  }
+
+  // DOM nodes
+  const volumeSlider = document.querySelector('.playControls .volume')
+
+  // Override SC.stream to cache players
+  let stream = SC.stream
+  SC.stream = function customStream (uri) {
+    if (players[uri] != null) {
+      return Promise.resolve(players[uri])
+    }
+    return stream(uri).then(player => {
+      players[uri] = player
+      player.setVolume(parseInt(volumeSlider.dataset.level, 10) / 10)
+      player.options.protocols = ['http', 'rtmp']
+      ;['play', 'toggle', 'pause'].forEach(fn => {
+        const old = player[fn]
+        player[fn] = () => {
+          lastActive = player
+          return old.call(player)
+        }
+      })
+      return player
+    })
+  }
+
+  // Returns the player currently playing a track
+  global.getActivePlayer = function getActivePlayer () {
+    return getPlayers().filter(player => player.isPlaying())[0]
+  }
+
+  ;['play', 'toggle', 'pause'].forEach(fn => {
+    global[fn] = () => {
+      return lastActive[fn]()
+    }
+  })
+
+  // Update player volumes when the slider is adjusted
+  const volumeMutationObserver = new MutationObserver(mutations => {
+    mutations.forEach(mutation => {
+      if (mutation.attributeName === 'data-level') {
+        getPlayers().forEach(player => player.setVolume(parseInt(mutation.target.dataset.level, 10) / 10))
+      }
+    })
+  })
+  volumeMutationObserver.observe(volumeSlider, { attributes: true })
+}(window))
+
+function getPlayerByTrackId (trackId) {
+  return SC.stream(`/tracks/${trackId}`)
+}
 
 // http://stackoverflow.com/q/10599933
 function abbreviateNumber (value) {
     var newValue = value;
+    if (value.toString().length === 6) {
+      return value.toString().substring(0, 3) + "k"
+    }
     if (value >= 1000) {
         var suffixes = ["", "k", "m", "b","t"];
         var suffixNum = Math.floor( (""+value).length/3 );
@@ -200,6 +269,34 @@ function abbreviateNumber (value) {
     }
     return newValue;
 }
+
+// https://gomakethings.com/climbing-up-and-down-the-dom-tree-with-vanilla-javascript/
+var getClosest = function ( selector, elem ) {
+
+    // Element.matches() polyfill
+    if (!Element.prototype.matches) {
+        Element.prototype.matches =
+            Element.prototype.matchesSelector ||
+            Element.prototype.mozMatchesSelector ||
+            Element.prototype.msMatchesSelector ||
+            Element.prototype.oMatchesSelector ||
+            Element.prototype.webkitMatchesSelector ||
+            function(s) {
+                var matches = (this.document || this.ownerDocument).querySelectorAll(s),
+                    i = matches.length;
+                while (--i >= 0 && matches.item(i) !== this) {}
+                return i > -1;
+            };
+    }
+
+    // Get closest match
+    for ( ; elem && elem !== document; elem = elem.parentNode ) {
+        if ( elem.matches( selector ) ) return elem;
+    }
+
+    return null;
+
+};
 
 // http://krasimirtsonev.com/blog/article/Revealing-the-magic-how-to-properly-convert-HTML-string-to-a-DOM-element
 function stringToDom (html) {

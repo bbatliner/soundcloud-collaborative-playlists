@@ -132,7 +132,7 @@ function createPlaylistListItem (playlistData) {
             .then(([trackData]) => {
               createGritter({
                 title: trackData.title,
-                text: `was added to <a href="${playlistData.permalink_url.replace(/http(s?):/, '')}">${playlistData.title}</a>.`,
+                text: `was added to <a href="${playlistData.permalink_url.replace(/http(s?):\/\/soundcloud\.com/, '')}">${playlistData.title}</a>.`,
                 image: playlistData.artwork_url || playlistData.tracks[0].artwork_url
               })
               isWorking = false

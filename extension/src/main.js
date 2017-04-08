@@ -10,6 +10,10 @@ port.onMessage.addListener(msg => {
   }
 })
 
+SC.connect().then(() => {
+  console.log('zik')
+})
+
 // TODO: other things might depend on the client to be authenticated first...
 // Exchange UID for a JWT to sign-in to Firebase with
 getUserData()
