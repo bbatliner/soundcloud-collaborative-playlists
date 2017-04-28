@@ -1,0 +1,77 @@
+{
+  "rules": {    
+    "accessTokens": {
+      "$uid": {
+        ".read": "auth.uid === $uid",
+        ".write": false
+      }
+    },
+
+    "collaborativePlaylists": {
+      // Default security
+      ".read": "auth != null",
+      ".write": "auth != null",
+
+      "$userId": {
+        // There is *no way* to ensure that a user writing to this path is actually the owner of the playlist on soundcloud.
+        // Except with a server or Cloud Function to hit the Soundcloud API and verify ownership.
+        // So for now, we only validate the data.
+        ".validate": "!newData.hasChildren() && newData.isBoolean()"
+      }
+    },
+
+    "editPermissions": {
+      "playlists": {
+        // Default security
+        ".read": "auth != null",
+        ".write": "auth != null",
+
+        "$playlistId": {
+          "$userId": {
+            // There is *no way* to ensure that a user writing to this path is actually the owner of the playlist on soundcloud.
+            // Except with a server or Cloud Function to hit the Soundcloud API and verify ownership.
+            // So for now, we only validate the data.
+            ".validate": "!newData.hasChildren() && newData.isBoolean()"
+          }
+        }
+      },
+      "users": {
+        // Default write security
+        ".write": "auth != null",
+
+        "$userId": {
+          // Users can only read the playlists they have permission to edit
+          ".read": "auth != null && $userId === auth.uid",
+
+          "$playlistId": {
+            // There is *no way* to ensure that a user writing to this path is actually the owner of the playlist on soundcloud.
+            // Except with a server or Cloud Function to hit the Soundcloud API and verify ownership.
+            // So for now, we only validate the data.
+            ".validate": "!newData.hasChildren() && newData.isBoolean()"
+          }
+        }
+      },
+      "$other": {
+        ".validate": false
+      }
+    },
+      
+    "tracks": {
+      // Default read security
+      ".read": "auth != null",
+
+      "$playlistId": {
+        // Users must have edit permissions to add or remove tracks from this playlist
+        ".write": "root.child('editPermissions').child('playlists').child($playlistId).child(auth.uid).val() == true",
+        
+        "$trackId": {
+          ".validate": "!newData.hasChildren() && newData.isBoolean()"
+        }
+      }
+    },
+
+    "$other": {
+      ".validate": false
+    }
+  }
+}
