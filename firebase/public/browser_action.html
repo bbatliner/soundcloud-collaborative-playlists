@@ -1,0 +1,79 @@
+<!doctype html>
+<html>
+<head>
+    <title>SoundCloud Collaborative Playlists</title>
+    <link href="https://a1.sndcdn.com/stylesheets/sc.css?1493385015" media="all" rel="stylesheet" type="text/css">
+    <link href="https://a1.sndcdn.com/stylesheets/mobile.css?1493385482" media="all" rel="stylesheet" type="text/css">
+    <style>
+        body {
+            overflow: hidden !important;
+        }
+        #loading,
+        #signed-out {
+            width: 90% !important;
+            max-width: 325px;
+            margin: 30px auto 10px;
+        }
+        #loading {
+            text-align: center;
+        }
+        #signed-out {
+            margin-top: 50px;
+        }
+        #signed-in {
+            margin-top: 35px;
+        }
+        .pane {
+            margin-bottom: 0 !important;
+        }
+    </style>
+</head>
+<body class="nextpopup authorize" id="oauth2_authorization">
+    <div id="main-wrapper">
+        <div id="popup-mobile-logo">
+            <span class="logo"></span>
+            &nbsp;
+            <span class="title">SoundCloud Collaborative Playlists</span>
+        </div>
+
+        <div id="loading">
+            <h2>Loading...</h2>
+        </div>
+
+        <div id="signed-out" style="display:none">
+            <h1 class="authorize-text">You are not logged in.</h1>
+            <div class="form-buttons">
+                <input class="sc-button sc-button-large sc-button-cta" id="signIn" name="commit" type="submit" value="Log In">
+            </div>
+        </div>
+
+        <div id="signed-in" style="display:none">
+            <div class="oauth-connect-form-wrapper">
+                <div class="pane" id="tab-connect">
+                    <div class="user-login-form oauth-form">
+                        <form class="existing-user authorize-token throbberform" id="authorize-token">
+                            You're signed in as:
+                            <li class="user small">
+                                <div class="userbadge context">
+                                    <div class="row">
+                                        <a href class="nickname" id="displayName" title="Visit profile"></a>
+                                    </div>
+                                </div>
+                            </li>
+
+                            <div class="logout">
+                                <a href id="signOut">Sign out</a>
+                            </div>
+                            
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="/__/firebase/3.9.0/firebase-app.js"></script>
+    <script src="/__/firebase/3.9.0/firebase-auth.js"></script>
+    <script src="/__/firebase/init.js"></script>
+    <script src="browser_action.js"></script>
+</body>
+</html>

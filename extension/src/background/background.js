@@ -1,3 +1,5 @@
+'use strict'
+
 // Initialize Firebase
 const config = {
   apiKey: 'AIzaSyBBgIlKYOKr0Jm4-57PCkUfUeiPSjjKrt0',

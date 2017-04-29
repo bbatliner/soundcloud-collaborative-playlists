@@ -23,15 +23,14 @@ Please wait...
   }
 
   function jsonpTokenReceived (data) {
-    console.log(data)
-    // if (data.token) {
-    //   firebase.auth().signInWithCustomToken(data.token).then(() => {
-    //     window.close()
-    //   })
-    // } else {
-    //   console.error(data)
-    //   document.body.innerText = `Error in the token Function: ${data.error}`
-    // }
+    if (data.token) {
+      firebase.auth().signInWithCustomToken(data.token).then(() => {
+        window.close()
+      })
+    } else {
+      console.error(data)
+      document.body.innerText = `Error in the token Function: ${data.error}`
+    }
   }
 
   const code = getURLParameter('code')
