@@ -27,93 +27,6 @@ chrome.extension.onConnect.addListener(port => {
         return
       }
 
-      if (msg.type === 'customToken') {
-        firebase.auth().signInWithCustomToken(msg.token).catch(errorHandler)
-        return
-      }
-
-      if (msg.type === 'profile') {
-        firebase.auth().currentUser.updateProfile(msg.profile).catch(errorHandler)
-        return
-      }
-
-      if (msg.type === 'markCollaborative') {
-        // TODO: handle errors
-        firebase.database().ref(`collaborativePlaylists/${msg.playlistId}`).set(true)
-        return
-      }
-
-      if (msg.type === 'unmarkCollaborative') {
-        firebase.database().ref(`collaborativePlaylists/${msg.playlistId}`).once('value', (snapshot) => {
-          if (snapshot.exists()) {
-            snapshot.ref.set(false)
-          }
-        }, (err) => {
-          // TODO: handle err
-        })
-        return
-      }
-
-      if (msg.type === 'isCollaborativeRequest') {
-        firebase.database().ref(`collaborativePlaylists/${msg.playlistId}`).once('value', (snapshot) => {
-          port.postMessage({
-            messageId: msg.messageId,
-            type: 'isCollaborativeResponse',
-            isCollaborative: snapshot.val()
-          })
-        }, (err) => {
-          port.postMessage({
-            messageId: msg.messageId,
-            type: 'isCollaborativeResponse',
-            error: err.message
-          })
-        })
-        return
-      }
-
-      if (msg.type === 'collaboratorsRequest') {
-        firebase.database().ref(`editPermissions/playlists/${msg.playlistId}`).once('value', (snapshot) => {
-          port.postMessage({
-            messageId: msg.messageId,
-            type: 'collaboratorsResponse',
-            collaborators: snapshot.val()
-          })
-        }, (err) => {
-          port.postMessage({
-            messageId: msg.messageId,
-            type: 'collaboratorsResponse',
-            error: err.message
-          })
-        })
-        return
-      }
-
-      if (msg.type === 'saveCollaborators') {
-        // TODO: handle errors
-        firebase.database().ref(`editPermissions/playlists/${msg.playlistId}`).set(msg.collaborators)
-        Object.keys(msg.collaborators).forEach(collaboratorId => {
-          firebase.database().ref(`editPermissions/users/${collaboratorId}/${msg.playlistId}`).set(msg.collaborators[collaboratorId])
-        })
-        return
-      }
-
-      if (msg.type === 'editablePlaylistsRequest') {
-        firebase.database().ref(`editPermissions/users/${msg.userId}`).once('value', (snapshot) => {
-          port.postMessage({
-            messageId: msg.messageId,
-            type: 'editablePlaylistsResponse',
-            editablePlaylists: snapshot.val()
-          })
-        }, (err) => {
-          port.postMessage({
-            messageId: msg.messageId,
-            type: 'editablePlaylistsResponse',
-            error: err.message
-          })
-        })
-        return
-      }
-
       if (msg.type === 'addTrackToPlaylist') {
         firebase.database().ref(`tracks/${msg.playlistId}/${msg.trackId}`).set(true, (err) => {
           const response = {
@@ -142,35 +55,6 @@ chrome.extension.onConnect.addListener(port => {
         return
       }
 
-      if (msg.type === 'getTracks') {
-        firebase.database().ref(`tracks/${msg.playlistId}`).once('value', (snapshot) => {
-          port.postMessage({
-            messageId: msg.messageId,
-            type: 'getTracksResponse',
-            tracks: snapshot.val()
-          })
-        }, (err) => {
-          port.postMessage({
-            messageId: msg.messageId,
-            type: 'getTracksResponse',
-            error: err.message
-          })
-        })
-        return
-      }
-
-    })
-
-    firebase.auth().onAuthStateChanged(user => {
-      if (disconnected) {
-        return
-      }
-      if (user) {
-        console.log('Logged in:', user)
-        port.postMessage({ type: 'login', user })
-      } else {
-        console.log('No user is signed in.')
-      }
     })
   }
 })

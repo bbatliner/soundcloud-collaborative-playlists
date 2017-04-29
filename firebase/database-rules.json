@@ -1,17 +1,14 @@
 {
-  "rules": {    
+  "rules": {
+    // Private database - only the admin account (with uid override) can read or write
+    ".read": "auth.uid === 'admin'",
+    ".write": "auth.uid === 'admin'",
+
     "accessTokens": {
-      "$uid": {
-        ".read": "auth.uid === $uid",
-        ".write": "auth.uid === 'admin'"
-      }
+      "$uid": { }
     },
 
     "collaborativePlaylists": {
-      // Default security
-      ".read": "auth != null",
-      ".write": "auth.uid === 'admin'",
-
       "$userId": {
         ".validate": "!newData.hasChildren() && newData.isBoolean()"
       }
@@ -19,10 +16,6 @@
 
     "editPermissions": {
       "playlists": {
-        // Default security
-        ".read": "auth != null",
-        ".write": "auth.uid === 'admin'",
-
         "$playlistId": {
           "$userId": {
             ".validate": "!newData.hasChildren() && newData.isBoolean()"
@@ -30,12 +23,7 @@
         }
       },
       "users": {
-        ".write": "auth.uid === 'admin'",
-
         "$userId": {
-          // Users can only read the playlists they have permission to edit
-          ".read": "auth != null && $userId === auth.uid",
-
           "$playlistId": {
             ".validate": "!newData.hasChildren() && newData.isBoolean()"
           }
@@ -47,13 +35,7 @@
     },
       
     "tracks": {
-      // Default read security
-      ".read": "auth != null",
-
       "$playlistId": {
-        // Users must have edit permissions to add or remove tracks from this playlist
-        ".write": "root.child('editPermissions').child('playlists').child($playlistId).child(auth.uid).val() == true",
-        
         "$trackId": {
           ".validate": "!newData.hasChildren() && newData.isBoolean()"
         }

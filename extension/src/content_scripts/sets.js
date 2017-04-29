@@ -1,5 +1,7 @@
 'use strict'
 
+// TODO: add collaborative playlist info in /you/sets (and filter)
+
 const { getIsCollaborative, setIsCollaborative } = (function () {
   function getPromise () {
     return new Promise((resolve, reject) => {
@@ -9,11 +11,7 @@ const { getIsCollaborative, setIsCollaborative } = (function () {
           if (playlistData == null) {
             return { isCollaborative: false }
           }
-          const data = {
-            type: 'isCollaborativeRequest',
-            playlistId: playlistData.id
-          }
-          return postMessage(port, data, 'isCollaborativeResponse')
+          return fetchAuthenticated(`/api/isCollaborative?playlistId=${playlistData.id}`).then(response => response.json())
         })
         .then(response => {
           resolve(response.isCollaborative)
@@ -23,7 +21,7 @@ const { getIsCollaborative, setIsCollaborative } = (function () {
   }
   let isCollaborativePromise = getPromise()
   onUrlChange(() => {
-    if (location.href.match(setRegex)) {
+    if (getLocationHref().match(setRegex)) {
       isCollaborativePromise = getPromise()
     }
   })
@@ -50,11 +48,7 @@ const { getCollaborators, setCollaboratorById } = (function () {
             if (playlistData == null) {
               return { collaborators: {} }
             }
-            const data = {
-              type: 'collaboratorsRequest',
-              playlistId: playlistData.id
-            }
-            return postMessage(port, data, 'collaboratorsResponse')
+            return fetchAuthenticated(`/api/collaborators?playlistId=${playlistData.id}`).then(response => response.json())
         })
         .then(response => {
           resolve(response.collaborators || {})
@@ -63,7 +57,7 @@ const { getCollaborators, setCollaboratorById } = (function () {
   }
   let collaboratorsPromise = getPromise()
   onUrlChange(() => {
-    if (location.href.match(setRegex)) {
+    if (getLocationHref().match(setRegex)) {
       collaboratorsPromise = getPromise()
     }
   })
@@ -80,31 +74,6 @@ const { getCollaborators, setCollaboratorById } = (function () {
   }
 }())
 
-const getCollaborativeTracks = (function () {
-  function getPromise () {
-    return getPlaylistData()
-      .then(playlistData => {
-        if (playlistData == null) {
-          return { tracks: {} }
-        }
-        const data = {
-          type: 'getTracks',
-          playlistId: playlistData.id
-        }
-        return postMessage(port, data, 'getTracksResponse')
-      })
-      .then(response => response.tracks || {})
-  }
-  let getCollaborativeTracksPromise = getPromise()
-  onUrlChange(() => {
-    if (location.href.match(setRegex)) {
-      getCollaborativeTracksPromise = getPromise()
-    }
-  })
-  return () => getCollaborativeTracksPromise
-}())
-
-
 // Show "Collaborative" indicator
 function showCollaborative () {
   getIsCollaborative()
@@ -115,80 +84,12 @@ function showCollaborative () {
     })
 }
 const showCollaborativeIfLocation = () => {
-  if (location.href.match(setRegex)) {
+  if (getLocationHref().match(setRegex)) {
     showCollaborative()
   }
 }
 onUrlChange(showCollaborativeIfLocation)
 showCollaborativeIfLocation()
-
-// Load collaborative tracks!
-function showCollaborativeTracks () {
-  const collaborativeTracksPromise = getCollaborativeTracks()
-  getCollaborativeTracks()
-    .then(collaborativeTracks => {
-      const listPromise = poll(() => document.querySelector('.trackList__list'), 10, 5000)
-      const collaborativeTracksArrPromise = Promise.all(
-        Object.keys(collaborativeTracks).filter(key => collaborativeTracks[key] !== false).map(getAnyTrackDataById)
-      )
-      return Promise.all([listPromise, collaborativeTracksArrPromise])
-    })
-    .then(([list, collaborativeTracksArr]) => {
-      if (collaborativeTracksArr.length === 0) {
-        return
-      }
-      // Insert list items into DOM
-      const hr = stringToDom('<hr id="collaborativeTrackDivider">')
-      list.parentNode.insertBefore(hr, list)
-      const collaborativeList = stringToDom('<ul class="collaborativeTrackList trackList__list sc-list-nostyle sc-clearfix"></ul>')
-      list.parentNode.insertBefore(collaborativeList, list.parentNode.children[0])
-      collaborativeTracksArr.map(createTrackListItem).forEach(listItem => collaborativeList.appendChild(listItem))
-    })
-}
-const showCollaborativeTracksIfLocation = () => {
-  if (location.href.match(setRegex)) {
-    showCollaborativeTracks()
-  }
-}
-onUrlChange(showCollaborativeTracksIfLocation)
-showCollaborativeTracksIfLocation()
-
-// Replace all the tracks on the page with our custom ones
-function replaceNormalTracks () {
-  const normalTrackListPromise = poll(() => document.querySelector('.trackList__list:not(.collaborativeTrackList)'), 10, 2000)
-  Promise.all([normalTrackListPromise, getIsCollaborative()])
-    .then(([normalTrackList, isCollaborative]) => {
-      if (!isCollaborative) {
-        return
-      }
-      // Use Promise.all to parallelize the data fetching, while not blocking the DOM rendering
-      return Promise.all(
-        Array.from(normalTrackList.children).map(listItem => {
-          return Promise.all([getUserData(), getAnyTrackData(listItem.querySelector('.trackItem__trackTitle').href), getPlaylistData()])
-            .then(([userData, trackData, playlistData]) => {
-              Object.assign(trackData, {
-                added_by: userData
-              })
-              listItem.parentNode.replaceChild(createTrackListItem(trackData), listItem)
-            })
-        })
-      )
-    })
-}
-const replaceNormalTracksIfLocation = () => {
-  if (location.href.match(setRegex)) {
-    replaceNormalTracks()
-  }
-}
-onUrlChange(replaceNormalTracksIfLocation)
-replaceNormalTracksIfLocation()
-
-// Override the playControls visible on every page
-// function overridePlayControls () {
-//   const playControls = document.querySelector('.playControls')
-//   document.querySelector('.playControls__play').addEventListener('click', doNothing)
-// }
-// overridePlayControls()
 
 // DOM helpers
 const ctaButtonSelector = '.audibleEditForm__formButtons .sc-button-cta'
@@ -197,7 +98,10 @@ const cancelButtonSelector = '.audibleEditForm__formButtons .sc-button[title="Ca
 // Inject some dank CSS
 document.head.appendChild(stringToDom(`<style>
   .editTrackList__list:not(:empty) {
-    margin-bottom: 15px
+    margin-bottom: 15px;
+  }
+  .editTrackList__item.toRemove {
+    display: none!important;
   }
 </style>`))
 
@@ -211,110 +115,6 @@ function getPlaylistArtworkUrl () {
     return artwork.style.backgroundImage.slice(5, -2)
   }
   throw new Error('Unable to find playlist artwork url')
-}
-
-function setPageAlbumArt (url) {
-  const albumArt = document.querySelector('.listenArtworkWrapper span.sc-artwork')
-  if (albumArt.style.backgroundImage.match(url)) {
-    return
-  }
-  albumArt.style.opacity = 0
-  const minFutureTime = Date.now() + 300
-  const img = new Image()
-  img.onload = function onBgLoad () {
-    if (Date.now() < minFutureTime) {
-      return setTimeout(onBgLoad, minFutureTime - Date.now())
-    }
-    albumArt.style.backgroundImage = `url("${img.src}")`
-    albumArt.style.opacity = 1
-  }
-  img.src = url
-}
-
-function createTrackListItem (trackData) {
-  // TODO: who added the track data (stored in firebase)
-  trackData.added_by = trackData.added_by || {}
-  const dom = stringToDom([
-    '<li class="trackList__item sc-border-light-bottom">',
-      '<div class="trackItem g-flex-row sc-type-small sc-type-light">',
-        '<div class="trackItem__image">',
-          '<div class="image m-sound image__lightOutline readOnly customImage sc-artwork sc-artwork-placeholder-10 m-loaded" style="height: 30px; width: 30px;">',
-            `<span style="background-image: url(&quot;${trackData.artwork_url}&quot;); width: 30px; height: 30px; opacity: 1;" class="sc-artwork sc-artwork-placeholder-10  image__full g-opacity-transition" aria-label="${trackData.title}" aria-role="img"></span>`,
-          '</div>',
-          '<div class="trackItem__play">',
-            `<button class="sc-button-play playButton sc-button sc-button-small" tabindex="0" title="Play">Play</button>`,
-          '</div>',
-        '</div>',
-        '<div class="trackItem__image">',
-          `<a href="/${trackData.added_by.permalink}" rel="nofollow" class="g-avatar-badge-avatar-link">`,
-            `<div class="image m-user readOnly customImage sc-artwork sc-artwork-placeholder-5 image__rounded m-loaded" style="height: 30px; width: 30px;" title="Added by ${trackData.added_by.username}"><span style="background-image: url(&quot;${trackData.added_by.avatar_url}&quot;); width: 30px; height: 30px; opacity: 1;" class="sc-artwork sc-artwork-placeholder-5 image__rounded image__full g-opacity-transition" aria-label="${trackData.added_by.username}’s avatar" aria-role="img"></span></div>`,
-          '</a>',
-        '</div>',
-        '<div class="trackItem__content sc-truncate">',
-          `<a href="${trackData.user.permalink_url.replace(/http(s?):\/\/soundcloud\.com/, '')}" class="trackItem__username sc-link-light">${trackData.user.username}</a> `,
-          '<span class="sc-type-light">—</span> ',
-          `<a href="${trackData.permalink_url.replace(/http(s?):\/\/soundcloud\.com/, '')}" class="trackItem__trackTitle sc-link-dark sc-font-light">${trackData.title}</a>`,
-        '</div>',
-        '<div class="trackItem__additional">',
-          '<span class="trackItem__tierIndicator g-go-plus-marker-list sc-hidden"></span>',
-          `<span class="trackItem__playCount sc-ministats sc-ministats-medium sc-ministats-plays">${abbreviateNumber(trackData.playback_count).toUpperCase()}</span>`,
-          '<div class="trackItem__actions">',
-            '<div class="soundActions sc-button-toolbar soundActions__small">',
-              '<div class="sc-button-group sc-button-group-small">',
-                '<button class="sc-button-like sc-button sc-button-small sc-button-responsive sc-button-icon" aria-describedby="tooltip-134" tabindex="0" title="Like">Like</button>',
-                '<button class="sc-button-repost sc-button sc-button-small sc-button-responsive sc-button-icon" aria-describedby="tooltip-136" tabindex="0" aria-haspopup="true" role="button" aria-owns="dropdown-button-137" title="Repost">Repost</button>',
-              '</div>',
-            '</div>',
-          '</div>',
-        '</div>',
-      '</div>',
-    '</li>'
-  ].join(''))
-
-  // Handle hover classes
-  const trackItem = dom.querySelector('.trackItem')
-  trackItem.addEventListener('mouseover', () => trackItem.classList.add('hover'))
-  trackItem.addEventListener('mouseout', () => trackItem.classList.remove('hover'))
-
-  // The play button is very important!
-  const playButton = dom.querySelector('.playButton')
-
-  // Handle if this track is already playing
-  const activePlayer = getActivePlayer()
-  if (activePlayer != null && activePlayer.options.soundId === trackData.id) {
-    playButton.classList.add('sc-button-pause')
-    setPageAlbumArt(trackData.artwork_url.replace('-large', '-t500x500'))
-    trackItem.classList.add('active')
-  }
-
-  // Handle play button click
-  let isWorking = false
-  playButton.addEventListener('click', () => {
-    if (isWorking) {
-      return
-    }
-    isWorking = true
-    // Show play controls
-    document.querySelector('.playControls').classList.add('m-visible')
-    // Toggle this track playing
-    getPlayerByTrackId(trackData.id).then(player => {
-      player.toggle()
-      isWorking = false
-    })
-    // Update all the play buttons in the track list
-    Array.from(document.querySelectorAll('.trackList__list .playButton')).forEach(button => {
-      if (button === playButton) {
-        button.classList.toggle('sc-button-pause')
-        getClosest('.trackItem', button).classList.toggle('active')
-      } else {
-        button.classList.remove('sc-button-pause')
-        getClosest('.trackItem', button).classList.remove('active')
-      }
-    })
-    // Update the big album art
-    setPageAlbumArt(trackData.artwork_url.replace('-large', '-t500x500'))
-  })
-  return dom
 }
 
 function createCollaboratorListItem (userData, isNew) {
@@ -340,9 +140,7 @@ function createCollaboratorListItem (userData, isNew) {
   removeButton.addEventListener('click', () => {
     setCollaboratorById(userData.id, false).then(() => {
       document.querySelector(ctaButtonSelector).removeAttribute('disabled')
-      if (dom.parentNode) {
-        dom.parentNode.removeChild(dom)
-      }
+      dom.classList.add('toRemove')
     })
   })
   if (isNew === true) {
@@ -368,12 +166,36 @@ const setsObserver = new MutationObserver(mutations => {
         ctaButton.addEventListener('click', () => {
           Promise.all([getPlaylistData(), getIsCollaborative(), getCollaborators()])
             .then(([playlistData, isCollaborative, collaborators]) => {
-              // Controls the ctaButton state and styles to simulate a save
-              function save () {
-                ctaButton.classList.add('sc-pending')
-                ctaButton.innerHTML = 'Saving'
-                ctaButton.disabled = 'disabled'
-                setTimeout(() => {
+              // Style the simulated pending save
+              ctaButton.classList.add('sc-pending')
+              ctaButton.innerHTML = 'Saving'
+              ctaButton.disabled = 'disabled'
+
+              const promises = []
+
+              // Handle isCollaborative
+              if (isCollaborative) {
+                promises.push(fetchAuthenticated(`/api/markCollaborative?playlistId=${playlistData.id}`))
+              } else {
+                promises.push(fetchAuthenticated(`/api/unmarkCollaborative?playlistId=${playlistData.id}`))
+              }
+
+              // Handle collaborators
+              if (isCollaborative) {
+                promises.push(fetchAuthenticated(`/api/collaborators`, {
+                  method: 'post',
+                  headers: {
+                    'Content-Type': 'application/json'
+                  },
+                  body: JSON.stringify({
+                    playlistId: playlistData.id,
+                    collaborators
+                  })
+                }))
+              }
+
+              Promise.all(promises)
+                .then(() => {
                   ctaButton.classList.remove('sc-pending')
                   ctaButton.innerHTML = 'Save Changes'
                   const closeButton = document.querySelector('.modal__closeButton')
@@ -388,32 +210,19 @@ const setsObserver = new MutationObserver(mutations => {
                   } else {
                     console.warn('Unable to close modal - close button not found.')
                   }
-                }, 750)
-              }
-
-              // Handle isCollaborative
-              if (isCollaborative) {
-                port.postMessage({
-                  type: 'markCollaborative',
-                  playlistId: playlistData.id
                 })
-                save()
-              } else {
-                port.postMessage({
-                  type: 'unmarkCollaborative',
-                  playlistId: playlistData.id
+                .catch(err => {
+                  console.error(err)
+                  ctaButton.classList.remove('sc-pending')
+                  ctaButton.innerHTML = 'Save Changes'
+                  Array.from(document.querySelectorAll('.editTrackList__item.toRemove')).forEach(el => {
+                    el.classList.remove('toRemove')
+                  })
+                  createGritter({
+                    text: 'Unable to save playlist. Try again later.',
+                    image: getPlaylistArtworkUrl().replace('500x500', '50x50')
+                  })
                 })
-              }
-
-              // Handle collaborators
-              if (isCollaborative) {
-                port.postMessage({
-                  type: 'saveCollaborators',
-                  playlistId: playlistData.id,
-                  collaborators: collaborators
-                })
-                save()
-              }
             })
         })
 

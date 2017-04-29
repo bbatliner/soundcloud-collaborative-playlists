@@ -1,4 +1,6 @@
-const CLIENT_ID = 'z8LRYFPM4UK5MMLaBe9vixfph5kqNA25'
+'use strict'
+
+const CLIENT_ID = 'QRU7nXBB8VqgGUz3eMl8Jjrr7CgFAE9J'
 const setRegex = /^https:\/\/soundcloud\.com\/[^\/]+\/sets\/[^\/]+$/
 const trackRegex = /^https:\/\/soundcloud\.com\/(?!you|stream)[^\/]+\/[^\/]+(\?in=.*)?$/
 
@@ -20,10 +22,6 @@ const fetchAuthenticated = (function () {
         if (e.data !== 'UNAUTHORIZED') {
           success(e)
         } else {
-          createGritter({
-            // TODO: Show extension icon in `image` option
-            text: 'You are not logged in to Collaborative Playlists. Click the extension icon to log in.'
-          })
           fail(e)
         }
       }
@@ -38,6 +36,10 @@ const fetchAuthenticated = (function () {
         resolve(e.data)
       },
       fail () {
+        createGritter({
+          // TODO: Show extension icon in `image` option
+          text: 'You are not logged in to Collaborative Playlists. Click the extension icon to log in.'
+        })
         reject('Unauthorized')
       }
     })
@@ -46,9 +48,17 @@ const fetchAuthenticated = (function () {
   function addUpdater () {
     addEventListener({
       success (e) {
+        createGritter({
+          // TODO: Show extension icon in `image` option
+          text: 'You\'re logged in! <a href onclick="location.reload()">Refresh</a> to enable collaborative content.'
+        })
         tokenPromise = Promise.resolve(e.data)
       },
       fail () {
+        createGritter({
+          // TODO: Show extension icon in `image` option
+          text: 'You signed out of Collaborative Playlists. Collaborative content will not display.'
+        })
         tokenPromise = Promise.reject('Unauthorized')
       }
     })
@@ -60,10 +70,15 @@ const fetchAuthenticated = (function () {
   document.body.appendChild(tokenIframe)
 
   // An authenticated fetch will wait, if necessary, for an auth token, and then fetch.
-  return function fetchAuthenticated (url, options = {}) {
+  return function fetchAuthenticated (path, options = {}) {
     return tokenPromise.then(token => {
       options.headers = Object.assign({}, options.headers, { Authorization: `Bearer ${token}` })
-      return fetch(url, options)
+      return fetch(`https://us-central1-collaborative-playlists.cloudfunctions.net${path}`, options)
+    }).then(response => {
+      if (response.status >= 400) {
+        throw new Error(`${response.url} ${response.status}`)
+      }
+      return response
     })
   }
 }())
@@ -98,9 +113,12 @@ function doNothing (e) {
 }
 
 function createGritter (options) {
-  const id = $.gritter.add(Object.assign({}, options, {
-    class_name: 'no-title'
-  }))
+  if (options.class_name) {
+    options.class_name += ' no-title'
+  } else {
+    options.class_name = 'no-title'
+  }
+  const id = $.gritter.add(options)
   document.getElementById(`gritter-item-${id}`).querySelector('.gritter-close').textContent = ''
 }
 
@@ -182,6 +200,10 @@ const onUrlChange = (function () {
   }
 }())
 
+function getLocationHref () {
+  return `${location.protocol}//${location.host}${location.pathname}${location.search ? location.search : ''}`
+}
+
 function getAnyUserDataById (userId) {
   return fetch(`https://api.soundcloud.com/users/${userId}.json?client_id=${CLIENT_ID}`)
     .then(checkStatus)
@@ -238,8 +260,8 @@ const getPlaylistData = (function () {
   let playlistPromise = Promise.resolve(null)
 
   const update = () => {
-    if (location.href.match(setRegex)) {
-      playlistPromise = getAnyPlaylistData(location.href)
+    if (getLocationHref().match(setRegex)) {
+      playlistPromise = getAnyPlaylistData(getLocationHref())
     }
   }
   onUrlChange(update)
@@ -249,92 +271,6 @@ const getPlaylistData = (function () {
     return playlistPromise
   }
 }())
-
-// SC.initialize({
-//   client_id: `${CLIENT_ID}`,
-//   redirect_uri: 'http://developers.soundcloud.com/callback.html'
-//   // redirect_uri: 'https://collaborative-playlists.firebaseapp.com/popup.html' 
-// })
-
-// Configure the SDK
-// ;(function (global) {
-//   // Players dictionary
-//   let players = {}
-//   let lastActive
-//   function getPlayers () {
-//     return Object.keys(players).map(key => players[key])
-//   }
-
-//   // DOM nodes
-//   const volumeSlider = document.querySelector('.playControls .volume')
-
-//   // Override SC.stream to cache players
-//   let stream = SC.stream
-//   SC.stream = function customStream (uri) {
-//     if (players[uri] != null) {
-//       return Promise.resolve(players[uri])
-//     }
-//     return stream(uri).then(player => {
-//       players[uri] = player
-//       player.setVolume(parseInt(volumeSlider.dataset.level, 10) / 10)
-//       player.options.protocols = ['http', 'rtmp']
-//       ;['play', 'toggle', 'pause'].forEach(fn => {
-//         const old = player[fn]
-//         player[fn] = () => {
-//           lastActive = player
-//           return old.call(player)
-//         }
-//       })
-//       return player
-//     })
-//   }
-
-//   // Returns the player currently playing a track
-//   global.getActivePlayer = function getActivePlayer () {
-//     return getPlayers().filter(player => player.isPlaying())[0]
-//   }
-
-//   ;['play', 'toggle', 'pause'].forEach(fn => {
-//     global[fn] = () => {
-//       return lastActive[fn]()
-//     }
-//   })
-
-//   // Update player volumes when the slider is adjusted
-//   const volumeMutationObserver = new MutationObserver(mutations => {
-//     mutations.forEach(mutation => {
-//       if (mutation.attributeName === 'data-level') {
-//         getPlayers().forEach(player => player.setVolume(parseInt(mutation.target.dataset.level, 10) / 10))
-//       }
-//     })
-//   })
-//   volumeMutationObserver.observe(volumeSlider, { attributes: true })
-// }(window))
-
-// function getPlayerByTrackId (trackId) {
-//   return SC.stream(`/tracks/${trackId}`)
-// }
-
-// // http://stackoverflow.com/q/10599933
-// function abbreviateNumber (value) {
-//     var newValue = value;
-//     if (value.toString().length === 6) {
-//       return value.toString().substring(0, 3) + "k"
-//     }
-//     if (value >= 1000) {
-//         var suffixes = ["", "k", "m", "b","t"];
-//         var suffixNum = Math.floor( (""+value).length/3 );
-//         var shortValue = '';
-//         for (var precision = 2; precision >= 1; precision--) {
-//             shortValue = parseFloat( (suffixNum != 0 ? (value / Math.pow(1000,suffixNum) ) : value).toPrecision(precision));
-//             var dotLessShortValue = (shortValue + '').replace(/[^a-zA-Z 0-9]+/g,'');
-//             if (dotLessShortValue.length <= 2) { break; }
-//         }
-//         if (shortValue % 1 != 0)  shortNum = shortValue.toFixed(1);
-//         newValue = shortValue+suffixes[suffixNum];
-//     }
-//     return newValue;
-// }
 
 // https://gomakethings.com/climbing-up-and-down-the-dom-tree-with-vanilla-javascript/
 var getClosest = function ( selector, elem ) {
