@@ -114,12 +114,13 @@ function showCollaborative () {
       }
     })
 }
-onUrlChange(() => {
+const showCollaborativeIfLocation = () => {
   if (location.href.match(setRegex)) {
     showCollaborative()
   }
-})
-showCollaborative()
+}
+onUrlChange(showCollaborativeIfLocation)
+showCollaborativeIfLocation()
 
 // Load collaborative tracks!
 function showCollaborativeTracks () {
@@ -144,12 +145,13 @@ function showCollaborativeTracks () {
       collaborativeTracksArr.map(createTrackListItem).forEach(listItem => collaborativeList.appendChild(listItem))
     })
 }
-onUrlChange(() => {
+const showCollaborativeTracksIfLocation = () => {
   if (location.href.match(setRegex)) {
     showCollaborativeTracks()
   }
-})
-showCollaborativeTracks()
+}
+onUrlChange(showCollaborativeTracksIfLocation)
+showCollaborativeTracksIfLocation()
 
 // Replace all the tracks on the page with our custom ones
 function replaceNormalTracks () {
@@ -173,22 +175,20 @@ function replaceNormalTracks () {
       )
     })
 }
-onUrlChange(() => {
+const replaceNormalTracksIfLocation = () => {
   if (location.href.match(setRegex)) {
     replaceNormalTracks()
   }
-})
-replaceNormalTracks()
+}
+onUrlChange(replaceNormalTracksIfLocation)
+replaceNormalTracksIfLocation()
 
 // Override the playControls visible on every page
-function overridePlayControls () {
-  const playControls = document.querySelector('.playControls')
-  document.querySelector('.playControls__play').addEventListener('click', doNothing)
-}
-overridePlayControls()
-
-// TODO: override "x tracks : time" display on set page
-// TODO: consider overriding track counts on other pages (namely /you/sets but also in the "Playlists from this user" section)
+// function overridePlayControls () {
+//   const playControls = document.querySelector('.playControls')
+//   document.querySelector('.playControls__play').addEventListener('click', doNothing)
+// }
+// overridePlayControls()
 
 // DOM helpers
 const ctaButtonSelector = '.audibleEditForm__formButtons .sc-button-cta'

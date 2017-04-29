@@ -18,12 +18,14 @@ const getEditablePlaylists = (function () {
         .catch(reject)
     })
   }
-  let editablePlaylistsPromise = getPromise()
-  onUrlChange(() => {
+  let editablePlaylistsPromise
+  const updatePromiseIfLocation = () => {
     if (location.href.match(trackRegex)) {
       editablePlaylistsPromise = getPromise()
     }
-  })
+  }
+  onUrlChange(updatePromiseIfLocation)
+  updatePromiseIfLocation()
   return () => editablePlaylistsPromise
 }())
 
@@ -31,12 +33,14 @@ const getTrackData = (function () {
   function getPromise () {
     return getAnyTrackData(location.href)
   }
-  let getTrackDataPromise = getPromise()
-  onUrlChange(() => {
+  let getTrackDataPromise
+  const updatePromiseIfLocation = () => {
     if (location.href.match(trackRegex)) {
       getTrackDataPromise = getPromise()
     }
-  })
+  }
+  onUrlChange(updatePromiseIfLocation)
+  updatePromiseIfLocation()
   return () => getTrackDataPromise
 }())
 

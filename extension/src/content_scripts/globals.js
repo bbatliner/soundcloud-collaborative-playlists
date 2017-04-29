@@ -2,6 +2,72 @@ const CLIENT_ID = 'z8LRYFPM4UK5MMLaBe9vixfph5kqNA25'
 const setRegex = /^https:\/\/soundcloud\.com\/[^\/]+\/sets\/[^\/]+$/
 const trackRegex = /^https:\/\/soundcloud\.com\/(?!you|stream)[^\/]+\/[^\/]+(\?in=.*)?$/
 
+const fetchAuthenticated = (function () {
+  // Bootstrap the iframe that will communicate Firebase authentication state to the extension
+  const tokenIframe = document.createElement('iframe')
+  tokenIframe.src = `https://collaborative-playlists.firebaseapp.com/getToken.html`
+  tokenIframe.height = 0
+  tokenIframe.width = 0
+  tokenIframe.style.display = 'none'
+
+  // A helper function to add a message listener from the iframe, and run appropriate callbacks.
+  function addEventListener ({ success, fail, runOnce }) {
+    window.addEventListener('message', function handler (e) {
+      if (e.origin === 'https://collaborative-playlists.firebaseapp.com') {
+        if (runOnce === true) {
+          window.removeEventListener('message', handler)
+        }
+        if (e.data !== 'UNAUTHORIZED') {
+          success(e)
+        } else {
+          createGritter({
+            // TODO: Show extension icon in `image` option
+            text: 'You are not logged in to Collaborative Playlists. Click the extension icon to log in.'
+          })
+          fail(e)
+        }
+      }
+    })
+  }
+
+  // The first token Promise is purely asynchronous - it waits until the first message is received
+  let tokenPromise = new Promise((resolve, reject) => {
+    addEventListener({
+      runOnce: true,
+      success (e) {
+        resolve(e.data)
+      },
+      fail () {
+        reject('Unauthorized')
+      }
+    })
+  })
+  // Subsequent token Promises are basically synchronous. They update tokenPromise to the latest value
+  function addUpdater () {
+    addEventListener({
+      success (e) {
+        tokenPromise = Promise.resolve(e.data)
+      },
+      fail () {
+        tokenPromise = Promise.reject('Unauthorized')
+      }
+    })
+  }
+  // Subsequent tokens are listened for after the first one is received (authorized or not)
+  tokenPromise.then(addUpdater).catch(addUpdater)
+
+  // Kick off the messaging
+  document.body.appendChild(tokenIframe)
+
+  // An authenticated fetch will wait, if necessary, for an auth token, and then fetch.
+  return function fetchAuthenticated (url, options = {}) {
+    return tokenPromise.then(token => {
+      options.headers = Object.assign({}, options.headers, { Authorization: `Bearer ${token}` })
+      return fetch(url, options)
+    })
+  }
+}())
+
 // https://davidwalsh.name/javascript-polling
 function poll (fn, interval = 100, timeout = 2000) {
   const endTime = Date.now() + timeout
@@ -13,7 +79,7 @@ function poll (fn, interval = 100, timeout = 2000) {
     if (Date.now() < endTime) {
       return setTimeout(checkCondition, interval, resolve, reject);
     }
-    return reject(new Error('Timed out.'))
+    return reject(new Error(`Timed out: ${fn.name || '(anonymous function)'}`))
   })
 }
 
@@ -184,91 +250,91 @@ const getPlaylistData = (function () {
   }
 }())
 
-SC.initialize({
-  client_id: `${CLIENT_ID}`,
-  redirect_uri: 'http://developers.soundcloud.com/callback.html'
-  // redirect_uri: 'https://collaborative-playlists.firebaseapp.com/popup.html' 
-})
+// SC.initialize({
+//   client_id: `${CLIENT_ID}`,
+//   redirect_uri: 'http://developers.soundcloud.com/callback.html'
+//   // redirect_uri: 'https://collaborative-playlists.firebaseapp.com/popup.html' 
+// })
 
 // Configure the SDK
-;(function (global) {
-  // Players dictionary
-  let players = {}
-  let lastActive
-  function getPlayers () {
-    return Object.keys(players).map(key => players[key])
-  }
+// ;(function (global) {
+//   // Players dictionary
+//   let players = {}
+//   let lastActive
+//   function getPlayers () {
+//     return Object.keys(players).map(key => players[key])
+//   }
 
-  // DOM nodes
-  const volumeSlider = document.querySelector('.playControls .volume')
+//   // DOM nodes
+//   const volumeSlider = document.querySelector('.playControls .volume')
 
-  // Override SC.stream to cache players
-  let stream = SC.stream
-  SC.stream = function customStream (uri) {
-    if (players[uri] != null) {
-      return Promise.resolve(players[uri])
-    }
-    return stream(uri).then(player => {
-      players[uri] = player
-      player.setVolume(parseInt(volumeSlider.dataset.level, 10) / 10)
-      player.options.protocols = ['http', 'rtmp']
-      ;['play', 'toggle', 'pause'].forEach(fn => {
-        const old = player[fn]
-        player[fn] = () => {
-          lastActive = player
-          return old.call(player)
-        }
-      })
-      return player
-    })
-  }
+//   // Override SC.stream to cache players
+//   let stream = SC.stream
+//   SC.stream = function customStream (uri) {
+//     if (players[uri] != null) {
+//       return Promise.resolve(players[uri])
+//     }
+//     return stream(uri).then(player => {
+//       players[uri] = player
+//       player.setVolume(parseInt(volumeSlider.dataset.level, 10) / 10)
+//       player.options.protocols = ['http', 'rtmp']
+//       ;['play', 'toggle', 'pause'].forEach(fn => {
+//         const old = player[fn]
+//         player[fn] = () => {
+//           lastActive = player
+//           return old.call(player)
+//         }
+//       })
+//       return player
+//     })
+//   }
 
-  // Returns the player currently playing a track
-  global.getActivePlayer = function getActivePlayer () {
-    return getPlayers().filter(player => player.isPlaying())[0]
-  }
+//   // Returns the player currently playing a track
+//   global.getActivePlayer = function getActivePlayer () {
+//     return getPlayers().filter(player => player.isPlaying())[0]
+//   }
 
-  ;['play', 'toggle', 'pause'].forEach(fn => {
-    global[fn] = () => {
-      return lastActive[fn]()
-    }
-  })
+//   ;['play', 'toggle', 'pause'].forEach(fn => {
+//     global[fn] = () => {
+//       return lastActive[fn]()
+//     }
+//   })
 
-  // Update player volumes when the slider is adjusted
-  const volumeMutationObserver = new MutationObserver(mutations => {
-    mutations.forEach(mutation => {
-      if (mutation.attributeName === 'data-level') {
-        getPlayers().forEach(player => player.setVolume(parseInt(mutation.target.dataset.level, 10) / 10))
-      }
-    })
-  })
-  volumeMutationObserver.observe(volumeSlider, { attributes: true })
-}(window))
+//   // Update player volumes when the slider is adjusted
+//   const volumeMutationObserver = new MutationObserver(mutations => {
+//     mutations.forEach(mutation => {
+//       if (mutation.attributeName === 'data-level') {
+//         getPlayers().forEach(player => player.setVolume(parseInt(mutation.target.dataset.level, 10) / 10))
+//       }
+//     })
+//   })
+//   volumeMutationObserver.observe(volumeSlider, { attributes: true })
+// }(window))
 
-function getPlayerByTrackId (trackId) {
-  return SC.stream(`/tracks/${trackId}`)
-}
+// function getPlayerByTrackId (trackId) {
+//   return SC.stream(`/tracks/${trackId}`)
+// }
 
-// http://stackoverflow.com/q/10599933
-function abbreviateNumber (value) {
-    var newValue = value;
-    if (value.toString().length === 6) {
-      return value.toString().substring(0, 3) + "k"
-    }
-    if (value >= 1000) {
-        var suffixes = ["", "k", "m", "b","t"];
-        var suffixNum = Math.floor( (""+value).length/3 );
-        var shortValue = '';
-        for (var precision = 2; precision >= 1; precision--) {
-            shortValue = parseFloat( (suffixNum != 0 ? (value / Math.pow(1000,suffixNum) ) : value).toPrecision(precision));
-            var dotLessShortValue = (shortValue + '').replace(/[^a-zA-Z 0-9]+/g,'');
-            if (dotLessShortValue.length <= 2) { break; }
-        }
-        if (shortValue % 1 != 0)  shortNum = shortValue.toFixed(1);
-        newValue = shortValue+suffixes[suffixNum];
-    }
-    return newValue;
-}
+// // http://stackoverflow.com/q/10599933
+// function abbreviateNumber (value) {
+//     var newValue = value;
+//     if (value.toString().length === 6) {
+//       return value.toString().substring(0, 3) + "k"
+//     }
+//     if (value >= 1000) {
+//         var suffixes = ["", "k", "m", "b","t"];
+//         var suffixNum = Math.floor( (""+value).length/3 );
+//         var shortValue = '';
+//         for (var precision = 2; precision >= 1; precision--) {
+//             shortValue = parseFloat( (suffixNum != 0 ? (value / Math.pow(1000,suffixNum) ) : value).toPrecision(precision));
+//             var dotLessShortValue = (shortValue + '').replace(/[^a-zA-Z 0-9]+/g,'');
+//             if (dotLessShortValue.length <= 2) { break; }
+//         }
+//         if (shortValue % 1 != 0)  shortNum = shortValue.toFixed(1);
+//         newValue = shortValue+suffixes[suffixNum];
+//     }
+//     return newValue;
+// }
 
 // https://gomakethings.com/climbing-up-and-down-the-dom-tree-with-vanilla-javascript/
 var getClosest = function ( selector, elem ) {

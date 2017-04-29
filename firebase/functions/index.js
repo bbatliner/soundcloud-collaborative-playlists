@@ -12,7 +12,10 @@ const crypto = require('crypto')
 const serviceAccount = require('./service-account.json')
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
-  databaseURL: `https://${process.env.GCLOUD_PROJECT}.firebaseio.com`
+  databaseURL: `https://${process.env.GCLOUD_PROJECT}.firebaseio.com`,
+  databaseAuthVariableOverride: {
+    uid: 'admin'
+  }
 })
 
 function getClientId () {
@@ -114,5 +117,32 @@ exports.token = functions.https.onRequest((req, res) => {
         console.error(err)
         res.jsonp({ error: err.toString() })
       })
+  })
+})
+
+// Authorization middleware
+function validateFirebaseToken () {
+  return function validateFirebaseToken (req, res, next) {
+    if (!req.headers.authorization || !req.headers.authorization.startsWith('Bearer ')) {
+      res.status(403).send('Unauthorized')
+      return
+    }
+    const token = req.headers.authorization.split('Bearer ')[1]
+    admin.auth().verifyIdToken(token)
+      .then(() => {
+        next()
+      })
+      .catch(error => {
+        console.error('Error while validating Firebase token:', error)
+        res.status(403).send('Unauthorized')
+      })
+  }
+}
+
+exports.secureRoute = functions.https.onRequest((req, res) => {
+  cors(req, res, () => {
+    validateFirebaseToken()(req, res, () => {
+      res.send('Authorized!')
+    })
   })
 })
