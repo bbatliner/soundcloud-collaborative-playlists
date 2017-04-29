@@ -47,6 +47,31 @@ function getOauthTokenFormData (code) {
   return form
 }
 
+function createFirebaseAccount(accessToken, soundcloudId, displayName, photoURL) {
+  // The new user's Firebase profile
+  const uid = soundcloudId.toString()
+  const profile = {
+    displayName,
+    photoURL
+  }
+
+  // Save the access token
+  const databasePromise = admin.database().ref(`/accessTokens/${uid}`).set(accessToken)
+
+  // Create or update the user account
+  const userCreationPromise = admin.auth().updateUser(uid, profile)
+    .catch(err => {
+      if (err.code === 'auth/user-not-found') {
+        return admin.auth().createUser(Object.assign({}, profile, { uid }))
+      }
+      throw err
+    })
+
+  return Promise.all([databasePromise, userCreationPromise]).then(() => {
+    return admin.auth().createCustomToken(uid)
+  })
+}
+
 exports.redirect = functions.https.onRequest((req, res) => {
   cookieParser()(req, res, () => {
     const state = req.cookies.state || crypto.randomBytes(20).toString('hex')
@@ -91,28 +116,3 @@ exports.token = functions.https.onRequest((req, res) => {
       })
   })
 })
-
-function createFirebaseAccount(accessToken, soundcloudId, displayName, photoURL) {
-  // The new user's Firebase profile
-  const uid = soundcloudId.toString()
-  const profile = {
-    displayName,
-    photoURL
-  }
-
-  // Save the access token
-  const databasePromise = admin.database().ref(`/accessTokens/${uid}`).set(accessToken)
-
-  // Create or update the user account
-  const userCreationPromise = admin.auth().updateUser(uid, profile)
-    .catch(err => {
-      if (err.code === 'auth/user-not-found') {
-        return admin.auth().createUser(Object.assign({}, profile, { uid }))
-      }
-      throw err
-    })
-
-  return Promise.all([databasePromise, userCreationPromise]).then(() => {
-    return admin.auth().createCustomToken(uid)
-  })
-}
