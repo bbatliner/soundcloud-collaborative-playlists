@@ -284,7 +284,7 @@ apiRouter.get('/editablePlaylists', (req, res) => {
   })
 })
 
-function addRemoveHelper (req, res, tracksFn) {
+function addRemoveHelper (req, res, tracksFn, collaboratorInfo) {
   // Verify the user has permission to add tracks to this playlist
   admin.database().ref(`editPermissions/playlists/${req.query.playlistId}`).once('value')
     .then(snapshot => {
@@ -304,20 +304,24 @@ function addRemoveHelper (req, res, tracksFn) {
       if (ownerAccessToken == null) {
         throw { status: 409, body: { error: 'The playlist owner does not have a Collaborative Playlist account.' } }
       }
+      // Add/remove the track on SoundCloud
       const tracks = playlistData.tracks.map(track => ({ id: track.id }))
-      tracksFn(tracks)
+      const modifiedTracks = tracksFn(tracks.slice(0))
       return fetch(`https://api.soundcloud.com/playlists/${req.query.playlistId}?oauth_token=${ownerAccessToken}&client_id=${getClientId()}&client_secret=${getClientSecret()}`, {
         method: 'put',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          playlist: { tracks }
+          playlist: { tracks: modifiedTracks }
         })
       })
     })
-    .then(response => response.text())
-    .then(data => {
+    .then(() => {
+      // Add/remove the collaborator info in Firebase
+      return admin.database().ref(`tracks/${req.query.playlistId}/${req.query.trackId}`).set(collaboratorInfo)
+    })
+    .then(() => {
       res.send()
     })
     .catch(err => {
@@ -343,6 +347,11 @@ apiRouter.get('/addTrackToPlaylist', (req, res) => {
   addRemoveHelper(req, res, (tracks) => {
     // Add the track requested
     tracks.push({ id: req.query.trackId })
+    return tracks
+  }, {
+    timestamp: Date.now(),
+    name: req.user.name,
+    picture: req.user.picture
   })
 })
 
@@ -358,7 +367,21 @@ apiRouter.get('/removeTrackFromPlaylist', (req, res) => {
 
   addRemoveHelper(req, res, (tracks) => {
     // Remove the track requested
-    tracks.splice(tracks.map(track => track.id).indexOf(req.query.trackId), 1)
+    // TODO: allow users to delete any track from the playlist (even if they didn't add it?)
+    return tracks.filter(track => track.id.toString() !== req.query.trackId)
+  }, null)
+})
+
+apiRouter.get('/getTracks', (req, res) => {
+  if (!req.query.playlistId) {
+    res.status(400).json({ error: 'playlistId is required.' })
+    return
+  }
+  admin.database().ref(`tracks/${req.query.playlistId}`).once('value', (snapshot) => {
+    res.json({ tracks: snapshot.val() })
+  }, (err) => {
+    console.error(err)
+    res.status(500).send({ error: 'Internal server error.' })
   })
 })
 

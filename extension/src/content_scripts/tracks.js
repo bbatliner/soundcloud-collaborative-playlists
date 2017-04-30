@@ -11,14 +11,12 @@ const getEditablePlaylists = (function () {
         .catch(reject)
     })
   }
-  let editablePlaylistsPromise
-  const updatePromiseIfLocation = () => {
+  let editablePlaylistsPromise = getPromise()
+  onUrlChange(() => {
     if (getLocationHref().match(trackRegex)) {
       editablePlaylistsPromise = getPromise()
     }
-  }
-  onUrlChange(updatePromiseIfLocation)
-  updatePromiseIfLocation()
+  })
   return () => editablePlaylistsPromise
 }())
 
@@ -34,7 +32,15 @@ const getTrackData = (function () {
   }
   onUrlChange(updatePromiseIfLocation)
   updatePromiseIfLocation()
-  return () => getTrackDataPromise
+  return () => {
+    if (window.currentTrackId) {
+      return getAnyTrackDataById(window.currentTrackId).then(data => {
+        delete window.currentTrackId
+        return data
+      })
+    }
+    return getTrackDataPromise
+  }
 }())
 
 // DOM helpers
@@ -68,14 +74,14 @@ function createPlaylistListItem (playlistData) {
       const dom = stringToDom([
         '<li class="addToPlaylistList__item sc-border-light-top sc-collaborative">',
           '<div class="addToPlaylistItem g-flex-row-centered">',
-            `<a href="${playlistData.permalink_url.replace(/http(s?):/, '')}" class="addToPlaylistItem__image" title="${playlistData.title}">`,
+            `<a href="${playlistData.permalink_url.replace(/http(s?):\/\/soundcloud.com/, '')}" class="addToPlaylistItem__image" title="${playlistData.title}">`,
               '<div class="image m-playlist image__lightOutline readOnly sc-artwork sc-artwork-placeholder-9 m-loaded" style="height: 50px; width: 50px;">',
                 `<span style="background-image: url(&quot;${playlistData.artwork_url || playlistData.tracks[0].artwork_url}&quot;); width: 50px; height: 50px; opacity: 1;" class="sc-artwork sc-artwork-placeholder-9 image__full g-opacity-transition" aria-label="test" aria-role="img"></span>`,
               '</div>',
             '</a>',
             '<div class="addToPlaylistItem__content">',
               '<h3 class="addToPlaylistItem__title sc-truncate">',
-                `<a href="${playlistData.permalink_url.replace(/http(s?):/, '')}" class="addToPlaylistItem__titleLink sc-link-dark" title="${playlistData.title}">${playlistData.title}</span>`,
+                `<a href="${playlistData.permalink_url.replace(/http(s?):\/\/soundcloud.com/, '')}" class="addToPlaylistItem__titleLink sc-link-dark" title="${playlistData.title}">${playlistData.title}</span>`,
                 '</a>',
               '</h3>',
               '<div class="addToPlaylistItem__data">',
@@ -84,7 +90,7 @@ function createPlaylistListItem (playlistData) {
               '</div>',
             '</div>',
             '<div class="addToPlaylistItem__actions g-flex-row-centered">',
-              playlistData.tracks.map(track => track.permalink_url.replace('http:', location.protocol)).includes(`${location.protocol}//${location.host}${location.pathname}`) ? '<button class="addToPlaylistButton sc-button sc-button-medium sc-button-responsive sc-button-selected" tabindex="0" title="Remove">Added</button>' : '<button class="addToPlaylistButton sc-button sc-button-medium sc-button-responsive" tabindex="0" title="Add to playlist">Add to playlist</button>',
+              playlistData.tracks.map(track => track.id).includes(trackData.id) ? '<button class="addToPlaylistButton sc-button sc-button-medium sc-button-responsive sc-button-selected" tabindex="0" title="Remove">Added</button>' : '<button class="addToPlaylistButton sc-button sc-button-medium sc-button-responsive" tabindex="0" title="Add to playlist">Add to playlist</button>',
             '</div>',
           '</div>',
         '</li>'
@@ -106,19 +112,23 @@ function createPlaylistListItem (playlistData) {
           count.title = `${currentCount + 1} ${currentCount + 1 === 1 ? 'track' : 'tracks'}`
           count.textContent = ` ${currentCount + 1}`
           // Then actually add to playlist
-          const a = getTrackData()
-          const b = a.then(trackData => {
-            return fetchAuthenticated(`/api/addTrackToPlaylist?playlistId=${playlistData.id}&trackId=${trackData.id}`)
-          })
-          Promise.all([a, b])
-            .then(([trackData]) => {
+          fetchAuthenticated(`/api/addTrackToPlaylist?playlistId=${playlistData.id}&trackId=${trackData.id}`)
+            .then(() => {
               createGritter({
                 class_name: 'oneLine',
                 title: trackData.title,
-                text: `was added to <a href="${playlistData.permalink_url.replace(/http(s?):\/\/soundcloud\.com/, '')}">${playlistData.title}</a>.`,
+                text: `was added to <a onclick="location.href='${playlistData.permalink_url.replace('http:', 'https:')}'">${playlistData.title}</a>.`,
                 image: playlistData.artwork_url || playlistData.tracks[0].artwork_url
               })
               isWorking = false
+              return getAnyPlaylistData(getLocationHref())
+            })
+            .then(locationPlaylistData => {
+              if (playlistData.id === locationPlaylistData.id) {
+                const title = Array.from(document.querySelectorAll('.trackItem__trackTitle')).filter(title => title.innerText === trackData.title)[0]
+                const item = getClosest('.trackList__item', title)
+                item.style.display = 'block'
+              }
             })
             .catch(err => {
               console.error(err)
@@ -146,16 +156,20 @@ function createPlaylistListItem (playlistData) {
           count.title = `${currentCount - 1} ${currentCount - 1 === 1 ? 'track' : 'tracks'}`
           count.textContent = ` ${currentCount - 1}`
           // Then actually remove from playlist
-          const a = getAnyTrackData(getLocationHref())
-          const b = a.then(trackData => {
-            return fetchAuthenticated(`/api/removeTrackFromPlaylist?playlistId=${playlistData.id}&trackId=${trackData.id}`)
-          })
-          Promise.all([a, b])
-            .then(([trackData]) => {
+          fetchAuthenticated(`/api/removeTrackFromPlaylist?playlistId=${playlistData.id}&trackId=${trackData.id}`)
+            .then(() => {
               addToPlaylistButton.textContent = 'Add to playlist'
               addToPlaylistButton.classList.remove('sc-button-selected')
               addToPlaylistButton.title = 'Add to playlist'
               isWorking = false
+              return getAnyPlaylistData(getLocationHref())
+            })
+            .then(locationPlaylistData => {
+              if (playlistData.id === locationPlaylistData.id) {
+                const title = Array.from(document.querySelectorAll('.trackItem__trackTitle')).filter(title => title.innerText === trackData.title)[0]
+                const item = getClosest('.trackList__item', title)
+                item.style.display = 'none'
+              }
             })
             .catch(err => {
               console.error(err)

@@ -19,13 +19,14 @@ const { getIsCollaborative, setIsCollaborative } = (function () {
         .catch(reject)
     })
   }
-  let isCollaborativePromise = getPromise()
-  onUrlChange(() => {
+  let isCollaborativePromise
+  const updatePromiseIfLocation = () => {
     if (getLocationHref().match(setRegex)) {
       isCollaborativePromise = getPromise()
     }
-  })
-  
+  }
+  onUrlChange(updatePromiseIfLocation)
+  updatePromiseIfLocation()
   return {
     getIsCollaborative () {
       return isCollaborativePromise
@@ -55,12 +56,14 @@ const { getCollaborators, setCollaboratorById } = (function () {
         })
     })
   }
-  let collaboratorsPromise = getPromise()
-  onUrlChange(() => {
+  let collaboratorsPromise
+  const updatePromiseIfLocation = () => {
     if (getLocationHref().match(setRegex)) {
       collaboratorsPromise = getPromise()
     }
-  })
+  }
+  onUrlChange(updatePromiseIfLocation)
+  updatePromiseIfLocation()
   return {
     getCollaborators () {
       return collaboratorsPromise
@@ -74,12 +77,105 @@ const { getCollaborators, setCollaboratorById } = (function () {
   }
 }())
 
+const getCollaborativeTracks = (function () {
+  function getPromise () {
+    return getPlaylistData()
+      .then(playlistData => {
+        return fetchAuthenticated(`/api/getTracks?playlistId=${playlistData.id}`)
+      })
+      .then(response => response.json())
+      .then(data => data.tracks || {})
+  }
+  let getCollaborativeTracksPromise
+  const updatePromiseIfLocation = () => {
+    if (getLocationHref().match(setRegex)) {
+      getCollaborativeTracksPromise = getPromise()
+    }
+  }
+  onUrlChange(updatePromiseIfLocation)
+  updatePromiseIfLocation()
+  return () => getCollaborativeTracksPromise
+}())
+
+// Load collaborative tracks!
+function showCollaborativeTracks () {
+  const collaborativeTracksPromise = getCollaborativeTracks()
+  const collaborativeTracksArrDataPromise = collaborativeTracksPromise.then(collaborativeTracks => {
+    return Promise.all(Object.keys(collaborativeTracks).map(getAnyTrackDataById))
+  })
+  const listPromise = poll(() => document.querySelector('.trackList__list'), 10, 5000)
+  Promise.all([collaborativeTracksPromise, collaborativeTracksArrDataPromise, listPromise])
+    .then(([collaborativeTracks, collaborativeTracksDataArr, list]) => {
+      collaborativeTracksDataArr.forEach(trackData => {
+        const addedBy = collaborativeTracks[trackData.id]
+        const listItem = Array.from(list.children).filter(el => el.querySelector('.trackItem__trackTitle').innerText === trackData.title)[0]
+        function addCollaborator () {
+          if (!document.body.contains(listItem) || listItem.querySelector('#collaboratorImage') != null) {
+            return
+          }
+          const image = listItem.querySelector('.trackItem__image')
+          image.style.marginRight = '4px'
+          const number = listItem.querySelector('.trackItem__numberWrapper')
+          number.parentNode.removeChild(number)
+          const collaboratorImage = stringToDom(`
+            <div class="trackItem__image" style="margin-right: 4.69px;">
+              <div id="collaboratorImage" class="image m-sound image__lightOutline readOnly customImage sc-artwork sc-artwork-placeholder-9 m-loaded" style="height: 30px; width: 30px; background-image: none">
+                <span style="width: 30px; height: 30px; opacity: 0;" class="sc-artwork sc-artwork-placeholder-9 image__full image__rounded g-opacity-transition" aria-label="${addedBy.name}" aria-role="img"></span>
+              </div>
+            </div>
+          `)
+          const container = collaboratorImage.querySelector('div.sc-artwork')
+          const addedOn = new Date(addedBy.timestamp)
+          container.title = `Added by ${addedBy.name} on ${addedOn.toLocaleString('en-us', { month: 'long', day: 'numeric' })}`
+          if (addedOn.getFullYear() < new Date().getFullYear()) {
+            container.title += `, ${addedOn.getFullYear()}`
+          }
+          const img = collaboratorImage.querySelector('span.sc-artwork')
+          const bgImg = new Image()
+          bgImg.onload = () => {
+            img.style.backgroundImage = `url(${addedBy.picture})`
+            img.style.opacity = 1
+          }
+          bgImg.src = addedBy.picture
+          image.parentNode.insertBefore(collaboratorImage, image.nextSibling)
+        }
+        listItem.addEventListener('click', () => {
+          setTimeout(addCollaborator, 0)
+        })
+        addCollaborator()
+      })
+    })
+
+  const trackDataArrPromise = listPromise.then(list => {
+    return Promise.all(Array.from(list.children).map((listItem, index) => {
+      return getAnyTrackData(listItem.querySelector('.trackItem__trackTitle').href)
+    }))
+  })
+  Promise.all([listPromise, trackDataArrPromise])
+    .then(([list, trackDataArr]) => {
+      Array.from(list.children).forEach((listItem, index) => {
+        listItem.addEventListener('click', () => {
+          window.currentTrackId = trackDataArr[index].id
+        })
+      })
+    })
+}
+const showCollaborativeTracksIfLocation = () => {
+  if (location.href.match(setRegex)) {
+    showCollaborativeTracks()
+  }
+}
+onUrlChange(showCollaborativeTracksIfLocation)
+showCollaborativeTracksIfLocation()
+
 // Show "Collaborative" indicator
 function showCollaborative () {
   getIsCollaborative()
     .then(isCollaborative => {
       if (isCollaborative) {
-        document.querySelector('.fullHero__uploadTime').appendChild(stringToDom('<span class="sc-button sc-button-responsive sc-button-cta sc-collaborative-label" style="margin-top: 2px">Collaborative</span>'))
+        const indicator = stringToDom('<span class="sc-button sc-button-responsive sc-button-cta sc-collaborative-label g-opacity-transition" style="margin-top: 2px; opacity: 0">Collaborative</span>')
+        document.querySelector('.fullHero__uploadTime').appendChild(indicator)
+        setTimeout(() => { indicator.style.opacity = 1 }, 0)
       }
     })
 }

@@ -37,7 +37,18 @@
     "tracks": {
       "$playlistId": {
         "$trackId": {
-          ".validate": "!newData.hasChildren() && newData.isBoolean()"
+          "timestamp": {
+            ".validate": "newData.isNumber()"
+          },
+          "name": {
+            ".validate": "newData.isString()"
+          },
+          "picture": {
+            ".validate": "newData.isString()"
+          },
+          "$other": {
+            ".validate": false
+          }
         }
       }
     },
