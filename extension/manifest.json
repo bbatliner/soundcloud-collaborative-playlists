@@ -30,7 +30,8 @@
         "vendor/jquery.gritter.min.js",
         "src/content_scripts/globals.js",
         "src/content_scripts/sets.js",
-        "src/content_scripts/tracks.js"
+        "src/content_scripts/tracks.js",
+        "src/content_scripts/playlists.js"
       ]
     }
   ]

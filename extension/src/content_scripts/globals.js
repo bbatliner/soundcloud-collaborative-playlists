@@ -3,6 +3,7 @@
 const CLIENT_ID = 'QRU7nXBB8VqgGUz3eMl8Jjrr7CgFAE9J'
 const setRegex = /^https:\/\/soundcloud\.com\/[^\/]+\/sets\/[^\/]+$/
 const trackRegex = /^https:\/\/soundcloud\.com\/(?!you|stream)[^\/]+\/[^\/]+(\?in=.*)?$/
+const playlistRegex = /^https:\/\/soundcloud\.com\/you\/sets$/
 
 const fetchAuthenticated = (function () {
   // Bootstrap the iframe that will communicate Firebase authentication state to the extension

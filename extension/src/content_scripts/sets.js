@@ -1,7 +1,5 @@
 'use strict'
 
-// TODO: add collaborative playlist info in /you/sets (and filter)
-
 const { getIsCollaborative, setIsCollaborative } = (function () {
   function getPromise () {
     return new Promise((resolve, reject) => {
@@ -170,12 +168,14 @@ showCollaborativeTracksIfLocation()
 
 // Show "Collaborative" indicator
 function showCollaborative () {
-  getIsCollaborative()
-    .then(isCollaborative => {
+  const isCollaborativePromise = getIsCollaborative()
+  const elPromise = poll(() => document.querySelector('.fullHero__uploadTime'))
+  Promise.all([isCollaborativePromise, elPromise])
+    .then(([isCollaborative, el]) => {
       if (isCollaborative) {
         const indicator = stringToDom('<span class="sc-button sc-button-responsive sc-button-cta sc-collaborative-label g-opacity-transition" style="margin-top: 2px; opacity: 0">Collaborative</span>')
-        document.querySelector('.fullHero__uploadTime').appendChild(indicator)
-        setTimeout(() => { indicator.style.opacity = 1 }, 0)
+        el.appendChild(indicator)
+        setTimeout(() => { indicator.style.opacity = 1 }, 10)
       }
     })
 }
