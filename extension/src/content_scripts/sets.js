@@ -1,5 +1,7 @@
 'use strict'
 
+// TODO: scrolling and adding new tracks, still should fetch collaborative tracks
+
 const { getIsCollaborative, setIsCollaborative } = (function () {
   function getPromise () {
     return new Promise((resolve, reject) => {
@@ -121,10 +123,7 @@ function showCollaborativeTracks () {
         `)
         const container = collaboratorImage.querySelector('div.sc-artwork')
         const addedOn = new Date(addedBy.timestamp)
-        container.title = `Added by ${addedBy.name} on ${addedOn.toLocaleString('en-us', { month: 'long', day: 'numeric' })}`
-        if (addedOn.getFullYear() < new Date().getFullYear()) {
-          container.title += `, ${addedOn.getFullYear()}`
-        }
+        container.title = `Added by ${addedBy.name} on ${addedOn.toLocaleString('en-gb', { month: 'long', day: 'numeric', year: 'numeric' })}`
         const img = collaboratorImage.querySelector('span.sc-artwork')
         const bgImg = new Image()
         bgImg.onload = () => {

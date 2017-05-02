@@ -4,6 +4,7 @@ const CLIENT_ID = 'QRU7nXBB8VqgGUz3eMl8Jjrr7CgFAE9J'
 const setRegex = /^https:\/\/soundcloud\.com\/[^\/]+\/sets\/[^\/]+$/
 const trackRegex = /^https:\/\/soundcloud\.com\/(?!you|stream)[^\/]+\/[^\/]+(\?in=.*)?$/
 const playlistRegex = /^https:\/\/soundcloud\.com\/you\/sets$/
+const profileRegex = /^https:\/\/soundcloud\.com\/[^\/]+\/sets$/
 
 const fetchAuthenticated = (function () {
   // Bootstrap the iframe that will communicate Firebase authentication state to the extension
@@ -51,7 +52,7 @@ const fetchAuthenticated = (function () {
       success (e) {
         createGritter({
           // TODO: Show extension icon in `image` option
-          text: 'You\'re logged in! <a href onclick="location.reload()">Refresh</a> to enable collaborative content.'
+          text: 'You\'re logged in! <a onclick="location.reload()">Refresh</a> to enable collaborative content.'
         })
         tokenPromise = Promise.resolve(e.data)
       },
@@ -76,6 +77,12 @@ const fetchAuthenticated = (function () {
       options.headers = Object.assign({}, options.headers, { Authorization: `Bearer ${token}` })
       return fetch(`https://us-central1-collaborative-playlists.cloudfunctions.net${path}`, options)
     }).then(response => {
+      if (response.status === 401) {
+        createGritter({
+          // TODO: Show extension icon in `image` option
+          text: 'Your data couldn\'t be fetched. Try <a onclick="location.reload()">refreshing</a> or logging in again.'
+        })
+      }
       if (response.status >= 400) {
         throw new Error(`${response.url} ${response.status}`)
       }
@@ -272,6 +279,35 @@ const getPlaylistData = (function () {
     return playlistPromise
   }
 }())
+
+// http://stackoverflow.com/a/3177838
+function timeSince(date) {
+
+  var seconds = Math.floor((new Date() - date) / 1000);
+
+  var interval = Math.floor(seconds / 31536000);
+
+  if (interval > 1) {
+    return interval + " years";
+  }
+  interval = Math.floor(seconds / 2592000);
+  if (interval > 1) {
+    return interval + " months";
+  }
+  interval = Math.floor(seconds / 86400);
+  if (interval > 1) {
+    return interval + " days";
+  }
+  interval = Math.floor(seconds / 3600);
+  if (interval > 1) {
+    return interval + " hours";
+  }
+  interval = Math.floor(seconds / 60);
+  if (interval > 1) {
+    return interval + " minutes";
+  }
+  return Math.floor(seconds) + " seconds";
+}
 
 // https://gomakethings.com/climbing-up-and-down-the-dom-tree-with-vanilla-javascript/
 var getClosest = function ( selector, elem ) {
