@@ -104,6 +104,8 @@ function showCollaborativeTracks () {
     return Promise.all(Object.keys(collaborativeTracks).map(getAnyTrackDataById))
   })
   const listPromise = poll(() => document.querySelector('.trackList__list'), 10, 5000)
+
+  // Update track items with collaborative avatars
   Promise.all([collaborativeTracksPromise, collaborativeTracksArrDataPromise, listPromise])
     .then(([collaborativeTracks, collaborativeTracksDataArr, list]) => {
       function addCollaborator (node, addedBy) {
@@ -162,21 +164,36 @@ function showCollaborativeTracks () {
       })
     })
 
-  const trackDataArrPromise = listPromise.then(list => {
-    return Promise.all(Array.from(list.children).map((listItem, index) => {
-      return poll(() => listItem.querySelector('.trackItem__trackTitle'), 10, 5000).then(title => {
-        return getAnyTrackData(title.href)
+  // Add event listeners to each track that will let the user add them to collaborative playlists (fetch the correct data)
+  listPromise.then(list => {
+    function addListener (listItem) {
+      const title = listItem.querySelector('.trackItem__trackTitle')
+      if (!title) {
+        return
+      }
+      listItem.addEventListener('click', () => {
+        window.currentTrackUrl = title.href
       })
-    }))
-  })
-  Promise.all([listPromise, trackDataArrPromise])
-    .then(([list, trackDataArr]) => {
-      Array.from(list.children).forEach((listItem, index) => {
-        listItem.addEventListener('click', () => {
-          window.currentTrackId = trackDataArr[index].id
+    }
+
+    // Add existing tracks
+    Array.from(list.children).forEach(addListener)
+
+    // Observe future tracks and add them, too
+    const listObserver = new MutationObserver(mutations => {
+      mutations.forEach(mutation => {
+        mutation.addedNodes.forEach(node => {
+          if (node.querySelector && node.querySelector('.trackItem__trackTitle') && list.contains(node)) {
+            addListener(getClosest('.trackList__item', node))
+          }
         })
       })
     })
+    listObserver.observe(list, {
+      childList: true,
+      subtree: true
+    })
+  })
 }
 const showCollaborativeTracksIfLocation = () => {
   if (location.href.match(setRegex)) {

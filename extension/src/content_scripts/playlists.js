@@ -214,7 +214,7 @@ function updateInputs () {
 }
 const updateInputsIfLocation = () => {
   if (getLocationHref().match(playlistRegex)) {
-    updateInputs()
+    setTimeout(() => updateInputs(), 0)
   }
 }
 onUrlChange(updateInputsIfLocation)

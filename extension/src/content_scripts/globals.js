@@ -2,9 +2,9 @@
 
 const CLIENT_ID = 'QRU7nXBB8VqgGUz3eMl8Jjrr7CgFAE9J'
 const setRegex = /^https:\/\/soundcloud\.com\/[^\/]+\/sets\/[^\/]+$/
-const trackRegex = /^https:\/\/soundcloud\.com\/(?!you|stream)[^\/]+\/[^\/]+(\?in=.*)?$/
+const trackRegex = /^https:\/\/soundcloud\.com\/(?!you|stream|search)[^\/]+\/[^\/]+(\?in=.*)?$/
 const playlistRegex = /^https:\/\/soundcloud\.com\/you\/sets$/
-const profileRegex = /^https:\/\/soundcloud\.com\/[^\/]+\/sets$/
+const profileRegex = /^https:\/\/soundcloud\.com\/(?!you)[^\/]+\/sets$/
 
 const fetchAuthenticated = (function () {
   // Bootstrap the iframe that will communicate Firebase authentication state to the extension
@@ -108,7 +108,7 @@ function poll (fn, interval = 100, timeout = 2000) {
 
 function checkStatus (response) {
   if (response.status !== 200) {
-    const error = new Error('Not OK')
+    const error = new Error(`Not OK (${response.status})`)
     error.response = response
     throw error
   }
@@ -224,6 +224,18 @@ function getAnyUserData (permalink) {
     .then(response => response.json())
 }
 
+function playlistPageToJson (html) {
+  return JSON.parse(html.substring(html.indexOf('artwork_url') - 3, html.indexOf('}]}]') + 2))[0]
+}
+
+function checkPlaylistError (err, url) {
+  // If the track isn't available via API, then load it via web and scrape the JSON
+  if (err.response && err.response.status === 500) {
+    return fetch(url).then(response => response.text()).then(playlistPageToJson)
+  }
+  throw err
+}
+
 function getAnyPlaylistDataById (playlistId) {
   return fetch(`https://api.soundcloud.com/playlists/${playlistId}.json?client_id=${CLIENT_ID}`)
     .then(checkStatus)
@@ -234,18 +246,43 @@ function getAnyPlaylistData (url) {
   return fetch(`https://api.soundcloud.com/resolve.json?url=${url}&client_id=${CLIENT_ID}`)
     .then(checkStatus)
     .then(response => response.json())
+    .catch(err => {
+      return checkPlaylistError(err, url)
+    })
+}
+
+function trackPageToJson (html) {
+  return JSON.parse(html.substring(html.indexOf('artwork_url') - 3, html.indexOf('}]}}}]') + 6))[0]
+}
+
+function checkTrackError ({ err, url, trackId } = {}) {
+  // If the track isn't available via API, then load it via web and scrape the JSON
+  if (err.response && err.response.status === 403) {
+    if (url) {
+      return fetch(url).then(response => response.text()).then(trackPageToJson)
+    }
+    console.warn(`Track ${trackId} might not be available in your country, or API access has been disabled.`)
+    throw err
+  }
+  throw err
 }
 
 function getAnyTrackDataById (trackId) {
   return fetch(`https://api.soundcloud.com/tracks/${trackId}.json?client_id=${CLIENT_ID}`)
     .then(checkStatus)
     .then(response => response.json())
+    .catch(err => {
+      return checkTrackError({ err, trackId })
+    })
 }
 
 function getAnyTrackData (url) {
   return fetch(`https://api.soundcloud.com/resolve.json?url=${url}&client_id=${CLIENT_ID}`)
     .then(checkStatus)
     .then(response => response.json())
+    .catch(err => {
+      return checkTrackError({ err, url })
+    })
 }
 
 const getUserData = (function () {

@@ -33,9 +33,9 @@ const getTrackData = (function () {
   onUrlChange(updatePromiseIfLocation)
   updatePromiseIfLocation()
   return () => {
-    if (window.currentTrackId) {
-      return getAnyTrackDataById(window.currentTrackId).then(data => {
-        delete window.currentTrackId
+    if (window.currentTrackUrl) {
+      return getAnyTrackData(window.currentTrackUrl).then(data => {
+        delete window.currentTrackUrl
         return data
       })
     }
@@ -306,11 +306,17 @@ const tracksObserver = new MutationObserver(mutations => {
               return
             }
             // Insert list items into DOM
-            const hr = stringToDom('<hr id="collaborativeSetDivider">')
+            const hr = stringToDom('<hr id="collaborativeSetDivider" class="g-opacity-transition" style="opacity: 0">')
             list.parentNode.insertBefore(hr, list)
-            const collaborativeList = stringToDom('<ul class="collaborativeSetList lazyLoadingList__list sc-list-nostyle sc-clearfix"></ul>')
+            const collaborativeList = stringToDom(
+              '<ul class="collaborativeSetList lazyLoadingList__list sc-list-nostyle sc-clearfix g-opacity-transition" style="opacity: 0"></ul>'
+            )
             list.parentNode.insertBefore(collaborativeList, hr)
             listItems.forEach(listItem => collaborativeList.appendChild(listItem))
+            setTimeout(() => {
+              collaborativeList.style.opacity = 1
+              hr.style.opacity = 1
+            }, 50)
 
             // Filter input
             poll(() => node.querySelector('.addToPlaylistList input'), 100, 5000)
