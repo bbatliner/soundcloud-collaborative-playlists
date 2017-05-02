@@ -72,12 +72,8 @@ function createPlaylistBadgeItem (playlistData) {
     }
   }
   playButton.addEventListener('click', () => {
-    // TODO: toggle styles on a mutationobserver of the play controls
-    // Toggle styles
-    togglePlayStyles()
-
     // Toggle playing
-    // Prefer the play controls, if they're on the page
+    // Prefer the play controls, if they're on the page and for this playlist
     if (getPlayControlsVisible() && getPlayingFromSet(playlistData.title, playlistData.user.username)) {
       playControlsPlayButton.click()
     }
@@ -92,19 +88,31 @@ function createPlaylistBadgeItem (playlistData) {
     }
   })
   // Pause this playlist when the track changes to something not in this playlist
-  const playControlsContext = document.querySelector('.playControls__soundBadge')
-  if (playControlsContext) {
-    const linkObserver = new MutationObserver(mutations => {
+  const playControlsElements = document.querySelector('.playControls__elements')
+  if (playControlsElements) {
+    const elementsObserver = new MutationObserver(mutations => {
       mutations.forEach(mutation => {
         mutation.addedNodes.forEach(node => {
-          if (node.classList && node.classList.contains('playbackSoundBadge__titleContextContainer')
-            && !getPlayingFromSet(playlistData.title, playlistData.user.username)) {
+          const isTitle = node.classList && node.classList.contains('playbackSoundBadge__titleContextContainer')
+          const isText = node.nodeType === Node.TEXT_NODE
+          if (!isTitle && !isText) {
+            return
+          }
+          const paused = node.textContent === 'Play current'
+          if (paused) {
             togglePlayStyles('pause')
+            return
+          }
+          const playingFromSet = getPlayingFromSet(playlistData.title, playlistData.user.username)
+          const playing = node.textContent === 'Pause current'
+          if (playing) {
+            togglePlayStyles(playingFromSet ? 'play' : 'pause')
+            return
           }
         })
       })
     })
-    linkObserver.observe(playControlsContext, {
+    elementsObserver.observe(playControlsElements, {
       childList: true,
       subtree: true
     })
