@@ -72,6 +72,7 @@ function createPlaylistBadgeItem (playlistData) {
     }
   }
   playButton.addEventListener('click', () => {
+    // TODO: toggle styles on a mutationobserver of the play controls
     // Toggle styles
     togglePlayStyles()
 
@@ -155,9 +156,7 @@ function updateInputs () {
       const listObserver = new MutationObserver(mutations => {
         mutations.forEach(mutation => {
           mutation.addedNodes.forEach(node => {
-            console.count('checking!')
             if (node.matches && node.matches('ul.lazyLoadingList__list')) {
-              console.count('matched!')
               handlers.forEach(handler => handler(node))
             }
           })
@@ -218,6 +217,7 @@ const playlistsObserver = new MutationObserver(mutations => {
     mutation.addedNodes.forEach(node => {
       // Dropdown menu added to DOM
       if (node.classList.contains('dropdownMenu') && node.querySelector('.linkMenu') && node.innerHTML.includes('Liked')) {
+        // Add "Collaborative"
         const collaborativeItem = stringToDom(`
           <li class="linkMenu__item sc-type-small">
             <a class="sc-link-dark sc-truncate g-block" href="" data-link-id="collaborative">Collaborative</a>
@@ -225,6 +225,69 @@ const playlistsObserver = new MutationObserver(mutations => {
         `)
         const list = node.querySelector('ul')
         list.appendChild(collaborativeItem)
+
+        // Set active item
+        const dropdownButton = document.querySelector('button.sc-button-dropdown')
+        const activeFilter = dropdownButton.querySelector('.sc-button-label-default').textContent
+        Array.from(list.children).forEach(item => {
+          if (item.textContent.trim() === activeFilter) {
+            item.classList.add('linkMenu__activeItem')
+          } else {
+            item.classList.remove('linkMenu__activeItem')
+          }
+        })
+
+        // Override clicks
+        Array.from(list.children).map(item => {
+          item.addEventListener('click', doNothing)
+          item.addEventListener('click', () => {
+            function filter (condition) {
+              Array.from(document.querySelectorAll('.badgeList__item')).forEach(badge => {
+                if (condition(badge)) {
+                  if (badge.style.display === 'block') {
+                    return
+                  }
+                  const artwork = badge.querySelector('span.sc-artwork')
+                  artwork.style.opacity = 0
+                  badge.style.display = 'block'
+                  setTimeout(() => {
+                    artwork.style.opacity = 1
+                  })
+                } else {
+                  badge.style.display = 'none'
+                }
+              })
+            }
+            function setLabel (text) {
+              Array.from(document.querySelector('.collectionSection__filterSelect .sc-button-alt-labels').children).forEach(label => {
+                label.textContent = text
+              })
+            }
+            switch (item.textContent.trim()) {
+              case 'All':
+                filter(() => true)
+                setLabel('All')
+                break
+              case 'Created':
+                filter(badge => badge.querySelector('.audibleTile__usernameHeading').textContent === document.querySelector('.userNav__username').textContent)
+                setLabel('Created')
+                break
+              case 'Liked':
+                filter(badge => badge.querySelector('.sc-button-like.sc-button-selected'))
+                setLabel('Liked')
+                break
+              case 'Collaborative':
+                filter(badge => badge.classList.contains('collaborativeBadge'))
+                setLabel('Collaborative')
+                break
+              default:
+                console.warn('Unsupported filter:', item.textContent.trim())
+                break
+            }
+            node.parentNode.removeChild(node)
+            setTimeout(() => dropdownButton.click(), 0)
+          })
+        })
       }
     })
   })
