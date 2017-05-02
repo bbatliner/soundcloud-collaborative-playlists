@@ -86,6 +86,7 @@ function createPlaylistBadgeItem (playlistData) {
       poll(() => document.querySelector('.soundTitle__playButton .playButton'), 10, 5000)
         .then(realPlayButton => {
           realPlayButton.click()
+          history.back(1)
         })
     }
   })

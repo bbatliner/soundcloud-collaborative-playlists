@@ -108,7 +108,6 @@ function showCollaborativeTracks () {
         if (node.querySelector('#collaboratorImage') != null) {
           return
         }
-        console.count('called')
         const image = node.querySelector('.trackItem__image')
         image.style.marginRight = '4px'
         const number = node.querySelector('.trackItem__numberWrapper')
@@ -137,7 +136,13 @@ function showCollaborativeTracks () {
       }
       collaborativeTracksDataArr.forEach(trackData => {
         const addedBy = collaborativeTracks[trackData.id]
-        const listItem = Array.from(list.children).filter(el => el.querySelector('.trackItem__trackTitle').innerText === trackData.title)[0]
+        const listItem = Array.from(list.children).filter(el => {
+          const titleEl = el.querySelector('.trackItem__trackTitle')
+          return titleEl && titleEl.innerText === trackData.title
+        })[0]
+        if (!listItem) {
+          return
+        }
         addCollaborator(listItem, addedBy)
         const listItemObserver = new MutationObserver(mutations => {
           mutations.forEach(mutation => {
