@@ -1,10 +1,25 @@
 'use strict'
 
 // DOM helpers
+
+function getPlayControlsVisible () {
+  const playControls = document.querySelector('.playControls')
+  return playControls && playControls.classList.contains('m-visible')
+}
+
+function getPlayingFromSet (setTitle, setOwner) {
+  const playControlsLink = document.querySelector('.playbackSoundBadge__title')
+  return playControlsLink && playControlsLink.href.includes(`?in=${setOwner}/sets/${setTitle}`)
+}
+
 function createPlaylistBadgeItem (playlistData) {
+  const playControlsVisible = getPlayControlsVisible()
+  const playingFromSet = getPlayingFromSet(playlistData.title, playlistData.user.username)
+  const playControlsPlayButton = document.querySelector('.playControls .playControls__play')
+  const isPlaying = playControlsVisible && playingFromSet && playControlsPlayButton.classList.contains('playing')
   const dom = stringToDom(`
     <li class="badgeList__item">
-      <div class="audibleTile" data-description="always" data-playbutton="hover" data-actions="hover">
+      <div class="audibleTile ${isPlaying ? 'm-playing' : ''}" data-description="always" data-playbutton="hover" data-actions="hover">
         <div class="audibleTile__artwork">
           <a class="audibleTile__artworkLink" href="${playlistData.permalink_url.replace(/http(s?):\/\/soundcloud.com/, '')}">
             <div class="audibleTile__image">
@@ -13,7 +28,7 @@ function createPlaylistBadgeItem (playlistData) {
             </div>
             <div class="audibleTile__trackCount">
               <div class="playlistTrackCount">
-                <div class="genericTrackCount small m-active" title="${playlistData.track_count} ${playlistData.track_count === 1 ? 'track' : 'tracks'}">
+                <div class="genericTrackCount small m-active" title="Collaborative Playlist" style="border: 2.5px solid #f50; padding-top: 10.5px;">
                   <div class="genericTrackCount__title sc-font-tabular">${playlistData.track_count}</div>
                   <div class="genericTrackCount__subtitle sc-font">
                     Tracks
@@ -24,13 +39,12 @@ function createPlaylistBadgeItem (playlistData) {
           </a>
 
           <div class="audibleTile__playButton g-z-index-content">
-            <button class="sc-button-play playButton sc-button m-stretch" tabindex="0" title="Play">Play</button>
+            ${isPlaying ? '<button class="sc-button-play playButton sc-button m-stretch sc-button-pause" tabindex="0" title="Pause">Pause</button>' : '<button class="sc-button-play playButton sc-button m-stretch" tabindex="0" title="Play">Play</button>'}
           </div>
         </div>
 
         <div class="audibleTile__description">
           <a class="audibleTile__heading audibleTile__mainHeading audibleTile__audibleHeading sc-truncate sc-type-light sc-font-light sc-link-dark" href="${playlistData.permalink_url.replace(/http(s?):\/\/soundcloud.com/, '')}">
-              <span class="sc-icon sc-icon-large sc-icon-like audibleTile__mainHeadingLike"></span>
 
             ${playlistData.title}
           </a>
@@ -43,13 +57,56 @@ function createPlaylistBadgeItem (playlistData) {
     </li>
   `)
   const playButton = dom.querySelector('.audibleTile__playButton .playButton')
+  const togglePlayStyles = (override) => {
+    const tile = dom.querySelector('.audibleTile')
+    if (override === 'pause' || (override !== 'play' && playButton.classList.contains('sc-button-pause'))) {
+      tile.classList.remove('m-playing')
+      playButton.classList.remove('sc-button-pause')
+      playButton.title = 'Play'
+      playButton.textContent = 'Play'
+    } else {
+      tile.classList.add('m-playing')
+      playButton.classList.add('sc-button-pause')
+      playButton.title = 'Pause'
+      playButton.textContent = 'Pause'
+    }
+  }
   playButton.addEventListener('click', () => {
-    dom.querySelector('.audibleTile__artworkLink').click()
-    poll(() => document.querySelector('.soundTitle__playButton .playButton'), 10, 5000)
-      .then(realPlayButton => {
-        realPlayButton.click()
-      })
+    // Toggle styles
+    togglePlayStyles()
+
+    // Toggle playing
+    // Prefer the play controls, if they're on the page
+    if (getPlayControlsVisible() && getPlayingFromSet(playlistData.title, playlistData.user.username)) {
+      playControlsPlayButton.click()
+    }
+    // Otherwise navigate to the set page and click the play/pause button
+    else {
+      dom.querySelector('.audibleTile__artworkLink').click()
+      poll(() => document.querySelector('.soundTitle__playButton .playButton'), 10, 5000)
+        .then(realPlayButton => {
+          realPlayButton.click()
+        })
+    }
   })
+  // Pause this playlist when the track changes to something not in this playlist
+  const playControlsContext = document.querySelector('.playControls__soundBadge')
+  if (playControlsContext) {
+    const linkObserver = new MutationObserver(mutations => {
+      mutations.forEach(mutation => {
+        mutation.addedNodes.forEach(node => {
+          if (node.classList && node.classList.contains('playbackSoundBadge__titleContextContainer')
+            && !getPlayingFromSet(playlistData.title, playlistData.user.username)) {
+            togglePlayStyles('pause')
+          }
+        })
+      })
+    })
+    linkObserver.observe(playControlsContext, {
+      childList: true,
+      subtree: true
+    })
+  }
   return dom
 }
 
@@ -91,6 +148,10 @@ function updateInputs () {
   sectionPromise.then(section => {
     section.style.width = '30%'
     section.querySelector('.sc-button-dropdown').style.width = '123.3px'
+    const filterInput = section.querySelector('input.textfield__input')
+    filterInput.addEventListener('input', () => {
+      // TODO: filter
+    })
   })
 }
 const updateInputsIfLocation = () => {

@@ -104,43 +104,57 @@ function showCollaborativeTracks () {
   const listPromise = poll(() => document.querySelector('.trackList__list'), 10, 5000)
   Promise.all([collaborativeTracksPromise, collaborativeTracksArrDataPromise, listPromise])
     .then(([collaborativeTracks, collaborativeTracksDataArr, list]) => {
+      function addCollaborator (node, addedBy) {
+        if (node.querySelector('#collaboratorImage') != null) {
+          return
+        }
+        console.count('called')
+        const image = node.querySelector('.trackItem__image')
+        image.style.marginRight = '4px'
+        const number = node.querySelector('.trackItem__numberWrapper')
+        number.parentNode.removeChild(number)
+        const collaboratorImage = stringToDom(`
+          <div class="trackItem__image" style="margin-right: 4.69px;">
+            <div id="collaboratorImage" class="image m-sound image__lightOutline readOnly customImage sc-artwork sc-artwork-placeholder-9 m-loaded" style="height: 30px; width: 30px; background-image: none">
+              <span style="width: 30px; height: 30px; opacity: 0;" class="sc-artwork sc-artwork-placeholder-9 image__full image__rounded g-opacity-transition" aria-label="${addedBy.name}" aria-role="img"></span>
+            </div>
+          </div>
+        `)
+        const container = collaboratorImage.querySelector('div.sc-artwork')
+        const addedOn = new Date(addedBy.timestamp)
+        container.title = `Added by ${addedBy.name} on ${addedOn.toLocaleString('en-us', { month: 'long', day: 'numeric' })}`
+        if (addedOn.getFullYear() < new Date().getFullYear()) {
+          container.title += `, ${addedOn.getFullYear()}`
+        }
+        const img = collaboratorImage.querySelector('span.sc-artwork')
+        const bgImg = new Image()
+        bgImg.onload = () => {
+          img.style.backgroundImage = `url(${addedBy.picture})`
+          img.style.opacity = 1
+        }
+        bgImg.src = addedBy.picture
+        image.parentNode.insertBefore(collaboratorImage, image.nextSibling)
+      }
       collaborativeTracksDataArr.forEach(trackData => {
         const addedBy = collaborativeTracks[trackData.id]
         const listItem = Array.from(list.children).filter(el => el.querySelector('.trackItem__trackTitle').innerText === trackData.title)[0]
-        function addCollaborator () {
-          if (!document.body.contains(listItem) || listItem.querySelector('#collaboratorImage') != null) {
-            return
-          }
-          const image = listItem.querySelector('.trackItem__image')
-          image.style.marginRight = '4px'
-          const number = listItem.querySelector('.trackItem__numberWrapper')
-          number.parentNode.removeChild(number)
-          const collaboratorImage = stringToDom(`
-            <div class="trackItem__image" style="margin-right: 4.69px;">
-              <div id="collaboratorImage" class="image m-sound image__lightOutline readOnly customImage sc-artwork sc-artwork-placeholder-9 m-loaded" style="height: 30px; width: 30px; background-image: none">
-                <span style="width: 30px; height: 30px; opacity: 0;" class="sc-artwork sc-artwork-placeholder-9 image__full image__rounded g-opacity-transition" aria-label="${addedBy.name}" aria-role="img"></span>
-              </div>
-            </div>
-          `)
-          const container = collaboratorImage.querySelector('div.sc-artwork')
-          const addedOn = new Date(addedBy.timestamp)
-          container.title = `Added by ${addedBy.name} on ${addedOn.toLocaleString('en-us', { month: 'long', day: 'numeric' })}`
-          if (addedOn.getFullYear() < new Date().getFullYear()) {
-            container.title += `, ${addedOn.getFullYear()}`
-          }
-          const img = collaboratorImage.querySelector('span.sc-artwork')
-          const bgImg = new Image()
-          bgImg.onload = () => {
-            img.style.backgroundImage = `url(${addedBy.picture})`
-            img.style.opacity = 1
-          }
-          bgImg.src = addedBy.picture
-          image.parentNode.insertBefore(collaboratorImage, image.nextSibling)
-        }
-        listItem.addEventListener('click', () => {
-          setTimeout(addCollaborator, 0)
+        addCollaborator(listItem, addedBy)
+        const listItemObserver = new MutationObserver(mutations => {
+          mutations.forEach(mutation => {
+            mutation.addedNodes.forEach(node => {
+              if (node.querySelector && node.querySelector('#collaboratorImage')) {
+                return
+              }
+              if (node.parentNode && node.parentNode.parentNode && node.parentNode.parentNode.matches('li.trackList__item')) {
+                addCollaborator(node.parentNode.parentNode, addedBy)
+              }
+            })
+          })
         })
-        addCollaborator()
+        listItemObserver.observe(listItem.parentNode, {
+          childList: true,
+          subtree: true
+        })
       })
     })
 
