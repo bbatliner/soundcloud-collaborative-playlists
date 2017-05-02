@@ -165,7 +165,9 @@ function showCollaborativeTracks () {
 
   const trackDataArrPromise = listPromise.then(list => {
     return Promise.all(Array.from(list.children).map((listItem, index) => {
-      return getAnyTrackData(listItem.querySelector('.trackItem__trackTitle').href)
+      return poll(() => listItem.querySelector('.trackItem__trackTitle'), 10, 5000).then(title => {
+        return getAnyTrackData(title.href)
+      })
     }))
   })
   Promise.all([listPromise, trackDataArrPromise])

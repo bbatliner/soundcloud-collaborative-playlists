@@ -18,7 +18,7 @@ function createPlaylistBadgeItem (playlistData) {
   const playControlsPlayButton = document.querySelector('.playControls .playControls__play')
   const isPlaying = playControlsVisible && playingFromSet && playControlsPlayButton.classList.contains('playing')
   const dom = stringToDom(`
-    <li class="badgeList__item">
+    <li class="badgeList__item collaborativeBadge">
       <div class="audibleTile ${isPlaying ? 'm-playing' : ''}" data-description="always" data-playbutton="hover" data-actions="hover">
         <div class="audibleTile__artwork">
           <a class="audibleTile__artworkLink" href="${playlistData.permalink_url.replace(/http(s?):\/\/soundcloud.com/, '')}">
@@ -146,12 +146,62 @@ showCollaborativePlaylistsIfLocation()
 // Update the 'Filter' input and filter dropdown styles
 function updateInputs () {
   const sectionPromise = poll(() => document.querySelector('.collectionSection__filters'))
-  sectionPromise.then(section => {
+  const listPromise = poll(() => document.querySelector('.badgeList'))
+  Promise.all([sectionPromise, listPromise]).then(([section, list]) => {
     section.style.width = '30%'
     section.querySelector('.sc-button-dropdown').style.width = '123.3px'
+    const onNewList = (function () {
+      const handlers = []
+      const listObserver = new MutationObserver(mutations => {
+        mutations.forEach(mutation => {
+          mutation.addedNodes.forEach(node => {
+            console.count('checking!')
+            if (node.matches && node.matches('ul.lazyLoadingList__list')) {
+              console.count('matched!')
+              handlers.forEach(handler => handler(node))
+            }
+          })
+        })
+      })
+      listObserver.observe(list, {
+        childList: true
+      })
+      return function onNewList (fn) {
+        handlers.push(fn)
+      }
+    }())
     const filterInput = section.querySelector('input.textfield__input')
     filterInput.addEventListener('input', () => {
-      // TODO: filter
+      function matches (badge) {
+        const title = badge.querySelector('.audibleTile__heading')
+        const owner = badge.querySelector('.audibleTile__usernameHeading')
+        const titleMatches = title.textContent.trim().toLowerCase().split(' ').some(word => word.startsWith(filterInput.value.toLowerCase()))
+        const ownerMatches = owner.textContent.trim().toLowerCase().split(' ').some(word => word.startsWith(filterInput.value.toLowerCase()))
+        if (titleMatches || ownerMatches) {
+          return true
+        }
+        return false
+      }
+      Array.from(document.querySelectorAll('.collaborativeBadge')).forEach(badge => {
+        if (filterInput.value.length == 0) {
+          badge.style.display = 'block'
+          return
+        }
+        if (matches(badge)) {
+          badge.style.display = 'block'
+        } else {
+          badge.style.display = 'none'
+        }
+        onNewList(newList => {
+          newList.appendChild(badge)
+        })
+      })
+    })
+    const clearButton = section.querySelector('button.textfield__clear')
+    clearButton.addEventListener('click', () => {
+      Array.from(document.querySelectorAll('.collaborativeBadge')).forEach(badge => {
+        badge.style.display = 'block'
+      })
     })
   })
 }
