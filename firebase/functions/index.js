@@ -132,8 +132,9 @@ exports.token = functions.https.onRequest((req, res) => {
  *      API       *
  ******************/
 
+const express = require('express')
 const cors = require('cors')({ origin: true })
-const apiRouter = new require('express').Router()
+const apiRouter = new express.Router()
 
 // Firebase authorization middleware
 function validateFirebaseToken (req, res, next) {
@@ -204,7 +205,7 @@ apiRouter.get('/unmarkCollaborative', (req, res) => {
   ensurePlaylistOwnership(req.query.playlistId)(req, res, () => {
     admin.database().ref(`collaborativePlaylists/${req.query.playlistId}`).once('value', (snapshot) => {
       if (!snapshot.exists()) {
-        res.status(409).json({ error: 'Playlist cannot be unmarked without marking first.'})
+        res.status(409).json({ error: 'Playlist cannot be unmarked without marking first.' })
         return
       }
       snapshot.ref.set(false)
@@ -289,7 +290,10 @@ function addRemoveHelper (req, res, tracksFn, collaboratorInfo) {
     .then(snapshot => {
       const permissions = snapshot.val()
       if (permissions[req.user.uid] !== true) {
-        throw { status: 403, body: { error: 'Not allowed' } }
+        const error = new Error('Not allowed.')
+        error.status = 403
+        error.body = { error: 'Not allowed' }
+        throw error
       }
       const playlistDataPromise = fetch(`https://api.soundcloud.com/playlists/${req.query.playlistId}?client_id=${getClientId()}`)
         .then(response => response.json())
@@ -301,7 +305,10 @@ function addRemoveHelper (req, res, tracksFn, collaboratorInfo) {
     })
     .then(([playlistData, ownerAccessToken]) => {
       if (ownerAccessToken == null) {
-        throw { status: 409, body: { error: 'The playlist owner does not have a Collaborative Playlist account.' } }
+        const error = new Error('Conflict.')
+        error.status = 409
+        error.body = { error: 'The playlist owner does not have a Collaborative Playlist account.' }
+        throw error
       }
       // Add/remove the track on SoundCloud
       const tracks = playlistData.tracks.map(track => ({ id: track.id }))

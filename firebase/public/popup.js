@@ -1,7 +1,8 @@
+/* global firebase */
 'use strict'
 
 function getURLParameter (name) {
-  return decodeURIComponent((new RegExp('[?|&]' + name + '=' + '([^&;]+?)(&|#|;|$)').exec(location.search) ||
+  return decodeURIComponent((new RegExp('[?|&]' + name + '=' + '([^&;]+?)(&|#|;|$)').exec(window.location.search) ||
       [null, ''])[1].replace(/\+/g, '%20')) || null
 }
 
@@ -28,7 +29,7 @@ if (error) {
   document.body.innerText = `Error back from the SoundCloud auth page: ${error}`
 } else if (!code) {
   // Start the auth flow.
-  window.location.href  = `https://us-central1-${getFirebaseProjectId()}.cloudfunctions.net/redirect`
+  window.location.href = `https://us-central1-${getFirebaseProjectId()}.cloudfunctions.net/redirect`
 } else {
   // Use JSONP to load the 'token' Firebase Function to exchange the auth code against a Firebase custom token.
   const script = document.createElement('script')

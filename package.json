@@ -1,0 +1,25 @@
+{
+  "name": "soundcloud-collaborative-playlists",
+  "version": "0.0.0",
+  "private": true,
+  "description": "View, manage, and play collaborative playlists on SoundCloud - better with friends.",
+  "bugs": "https://github.com/bbatliner/soundcloud-collaborative-playlists/issues",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bbatliner/soundcloud-collaborative-playlists.git"
+  },
+  "devDependencies": {
+    "babel-core": "^6.24.1",
+    "babel-loader": "^7.0.0",
+    "babel-plugin-transform-strict-mode": "^6.24.1",
+    "babel-preset-babili": "0.0.12",
+    "babel-preset-env": "^1.4.0",
+    "del": "^2.2.2",
+    "gulp": "^3.9.1",
+    "gulp-babili": "0.0.2",
+    "gulp-clean": "^0.3.2",
+    "gulp-standard": "^10.0.0",
+    "gulp-webpack": "^1.5.0",
+    "webpack": "^2.4.1"
+  }
+}

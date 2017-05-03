@@ -1,3 +1,4 @@
+/* global firebase */
 'use strict'
 
 const loading = document.getElementById('loading')
@@ -5,12 +6,12 @@ const signedIn = document.getElementById('signed-in')
 const signedOut = document.getElementById('signed-out')
 
 firebase.auth().onAuthStateChanged(user => {
+  function show () {
+    loading.style.display = 'none'
+    signedIn.style.display = 'block'
+    signedOut.style.display = 'none'
+  }
   if (user) {
-    function show () {
-      loading.style.display = 'none'
-      signedIn.style.display = 'block'
-      signedOut.style.display = 'none'
-    }
     const displayNameEl = signedIn.querySelector('#displayName')
     displayNameEl.textContent = user.displayName
     fetch(`https://api.soundcloud.com/users/${user.uid}?client_id=QRU7nXBB8VqgGUz3eMl8Jjrr7CgFAE9J`)

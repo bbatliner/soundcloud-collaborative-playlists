@@ -1,3 +1,4 @@
+/* global firebase */
 'use strict'
 
 firebase.auth().onAuthStateChanged(user => {

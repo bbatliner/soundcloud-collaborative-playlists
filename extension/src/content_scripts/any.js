@@ -1,4 +1,4 @@
-'use strict'
+import { getClosest } from './util/dom'
 
 // Listens for addtoset button presses, and sets the current track URL for data fetching
 document.body.addEventListener('mousedown', (e) => {
