@@ -99,68 +99,67 @@ const getCollaborativeTracks = (function () {
 
 // Load collaborative tracks!
 function showCollaborativeTracks () {
+  function addCollaborator (node, addedBy) {
+    if (node.querySelector('#collaboratorImage') != null) {
+      return
+    }
+    const image = node.querySelector('.trackItem__image')
+    image.style.marginRight = '4px'
+    const number = node.querySelector('.trackItem__numberWrapper')
+    number.parentNode.removeChild(number)
+    const collaboratorImage = stringToDom(`
+      <div class="trackItem__image" style="margin-right: 4.69px;">
+        <div id="collaboratorImage" class="image m-sound image__lightOutline readOnly customImage sc-artwork sc-artwork-placeholder-9 m-loaded" style="height: 30px; width: 30px; background-image: none">
+          <span style="width: 30px; height: 30px; opacity: 0;" class="sc-artwork sc-artwork-placeholder-9 image__full image__rounded g-opacity-transition" aria-label="${addedBy.name}" aria-role="img"></span>
+        </div>
+      </div>
+    `)
+    const container = collaboratorImage.querySelector('div.sc-artwork')
+    const addedOn = new Date(addedBy.timestamp)
+    container.title = `Added by ${addedBy.name} on ${addedOn.toLocaleString('en-gb', { month: 'long', day: 'numeric', year: 'numeric' })}`
+    const img = collaboratorImage.querySelector('span.sc-artwork')
+    const bgImg = new Image()
+    bgImg.onload = () => {
+      img.style.backgroundImage = `url(${addedBy.picture})`
+      img.style.opacity = 1
+    }
+    bgImg.src = addedBy.picture
+    image.parentNode.insertBefore(collaboratorImage, image.nextSibling)
+  }
+
   const collaborativeTracksPromise = getCollaborativeTracks()
-  const collaborativeTracksArrDataPromise = collaborativeTracksPromise.then(collaborativeTracks => {
-    return Promise.all(Object.keys(collaborativeTracks).map(getAnyTrackDataById))
-  })
   const listPromise = poll(() => document.querySelector('.trackList__list'), 10, 5000)
 
-  // TODO: don't use Promise.all because we don't want to wait for everything to load
   // Update track items with collaborative avatars
-  Promise.all([collaborativeTracksPromise, collaborativeTracksArrDataPromise, listPromise])
-    .then(([collaborativeTracks, collaborativeTracksDataArr, list]) => {
-      function addCollaborator (node, addedBy) {
-        if (node.querySelector('#collaboratorImage') != null) {
-          return
-        }
-        const image = node.querySelector('.trackItem__image')
-        image.style.marginRight = '4px'
-        const number = node.querySelector('.trackItem__numberWrapper')
-        number.parentNode.removeChild(number)
-        const collaboratorImage = stringToDom(`
-          <div class="trackItem__image" style="margin-right: 4.69px;">
-            <div id="collaboratorImage" class="image m-sound image__lightOutline readOnly customImage sc-artwork sc-artwork-placeholder-9 m-loaded" style="height: 30px; width: 30px; background-image: none">
-              <span style="width: 30px; height: 30px; opacity: 0;" class="sc-artwork sc-artwork-placeholder-9 image__full image__rounded g-opacity-transition" aria-label="${addedBy.name}" aria-role="img"></span>
-            </div>
-          </div>
-        `)
-        const container = collaboratorImage.querySelector('div.sc-artwork')
-        const addedOn = new Date(addedBy.timestamp)
-        container.title = `Added by ${addedBy.name} on ${addedOn.toLocaleString('en-gb', { month: 'long', day: 'numeric', year: 'numeric' })}`
-        const img = collaboratorImage.querySelector('span.sc-artwork')
-        const bgImg = new Image()
-        bgImg.onload = () => {
-          img.style.backgroundImage = `url(${addedBy.picture})`
-          img.style.opacity = 1
-        }
-        bgImg.src = addedBy.picture
-        image.parentNode.insertBefore(collaboratorImage, image.nextSibling)
-      }
-      collaborativeTracksDataArr.forEach(trackData => {
-        const addedBy = collaborativeTracks[trackData.id]
-        const listItem = Array.from(list.children).filter(el => {
-          const titleEl = el.querySelector('.trackItem__trackTitle')
-          return titleEl && titleEl.innerText === trackData.title
-        })[0]
-        if (!listItem) {
-          return
-        }
-        addCollaborator(listItem, addedBy)
-        const listItemObserver = new MutationObserver(mutations => {
-          mutations.forEach(mutation => {
-            mutation.addedNodes.forEach(node => {
-              if (node.querySelector && node.querySelector('#collaboratorImage')) {
-                return
-              }
-              if (node.parentNode && node.parentNode.parentNode && node.parentNode.parentNode.matches('li.trackList__item')) {
-                addCollaborator(node.parentNode.parentNode, addedBy)
-              }
+  Promise.all([collaborativeTracksPromise, listPromise])
+    .then(([collaborativeTracks, list]) => {
+      Object.keys(collaborativeTracks).forEach(trackId => {
+        getAnyTrackDataById(trackId).then(trackData => {
+          const addedBy = collaborativeTracks[trackData.id]
+          const listItem = Array.from(list.children).filter(el => {
+            const titleEl = el.querySelector('.trackItem__trackTitle')
+            return titleEl && titleEl.innerText === trackData.title
+          })[0]
+          if (!listItem) {
+            return
+          }
+          addCollaborator(listItem, addedBy)
+          const listItemObserver = new MutationObserver(mutations => {
+            mutations.forEach(mutation => {
+              mutation.addedNodes.forEach(node => {
+                if (node.querySelector && node.querySelector('#collaboratorImage')) {
+                  return
+                }
+                if (node.parentNode && node.parentNode.parentNode && node.parentNode.parentNode.matches('li.trackList__item')) {
+                  addCollaborator(node.parentNode.parentNode, addedBy)
+                }
+              })
             })
           })
-        })
-        listItemObserver.observe(listItem.parentNode, {
-          childList: true,
-          subtree: true
+          listItemObserver.observe(listItem.parentNode, {
+            childList: true,
+            subtree: true
+          })
         })
       })
     })
