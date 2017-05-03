@@ -71,30 +71,30 @@ document.head.appendChild(stringToDom(`<style>
 function createPlaylistListItem (playlistData) {
   return getTrackData()
     .then(trackData => {
-      const dom = stringToDom([
-        '<li class="addToPlaylistList__item sc-border-light-top sc-collaborative">',
-          '<div class="addToPlaylistItem g-flex-row-centered">',
-            `<a href="${playlistData.permalink_url.replace(/http(s?):\/\/soundcloud.com/, '')}" class="addToPlaylistItem__image" title="${playlistData.title}">`,
-              '<div class="image m-playlist image__lightOutline readOnly sc-artwork sc-artwork-placeholder-9 m-loaded" style="height: 50px; width: 50px;">',
-                `<span style="background-image: url(&quot;${playlistData.artwork_url || playlistData.tracks[0].artwork_url}&quot;); width: 50px; height: 50px; opacity: 1;" class="sc-artwork sc-artwork-placeholder-9 image__full g-opacity-transition" aria-label="test" aria-role="img"></span>`,
-              '</div>',
-            '</a>',
-            '<div class="addToPlaylistItem__content">',
-              '<h3 class="addToPlaylistItem__title sc-truncate">',
-                `<a href="${playlistData.permalink_url.replace(/http(s?):\/\/soundcloud.com/, '')}" class="addToPlaylistItem__titleLink sc-link-dark" title="${playlistData.title}">${playlistData.title}</span>`,
-                '</a>',
-              '</h3>',
-              '<div class="addToPlaylistItem__data">',
-                `<span title="${playlistData.track_count} ${playlistData.track_count === 1 ? 'track' : 'tracks'}" class="addToPlaylistItem__count sc-ministats sc-ministats-small sc-ministats-sounds"> ${playlistData.track_count}</span>`,
-                `<span class="sc-button sc-button-small sc-button-responsive sc-button-cta sc-collaborative-label-small">Collaborative</span>`,
-              '</div>',
-            '</div>',
-            '<div class="addToPlaylistItem__actions g-flex-row-centered">',
-              playlistData.tracks.map(track => track.id).includes(trackData.id) ? '<button class="addToPlaylistButton sc-button sc-button-medium sc-button-responsive sc-button-selected" tabindex="0" title="Remove">Added</button>' : '<button class="addToPlaylistButton sc-button sc-button-medium sc-button-responsive" tabindex="0" title="Add to playlist">Add to playlist</button>',
-            '</div>',
-          '</div>',
-        '</li>'
-      ].join(''))
+      const dom = stringToDom(`
+        <li class="addToPlaylistList__item sc-border-light-top sc-collaborative">
+          <div class="addToPlaylistItem g-flex-row-centered">
+            <a href="${playlistData.permalink_url.replace(/http(s?):\/\/soundcloud.com/, '')}" class="addToPlaylistItem__image" title="${playlistData.title}">
+              <div class="image m-playlist image__lightOutline readOnly sc-artwork sc-artwork-placeholder-9 m-loaded" style="height: 50px; width: 50px;">
+                <span style="background-image: url(&quot;${playlistData.artwork_url || playlistData.tracks[0].artwork_url}&quot;); width: 50px; height: 50px; opacity: 1;" class="sc-artwork sc-artwork-placeholder-9 image__full g-opacity-transition" aria-label="test" aria-role="img"></span>
+              </div>
+            </a>
+            <div class="addToPlaylistItem__content">
+              <h3 class="addToPlaylistItem__title sc-truncate">
+                <a href="${playlistData.permalink_url.replace(/http(s?):\/\/soundcloud.com/, '')}" class="addToPlaylistItem__titleLink sc-link-dark" title="${playlistData.title}">${playlistData.title}</span>
+                </a>
+              </h3>
+              <div class="addToPlaylistItem__data">
+                <span title="${playlistData.track_count} ${playlistData.track_count === 1 ? 'track' : 'tracks'}" class="addToPlaylistItem__count sc-ministats sc-ministats-small sc-ministats-sounds"> ${playlistData.track_count}</span>
+                <span class="sc-button sc-button-small sc-button-responsive sc-button-cta sc-collaborative-label-small">Collaborative</span>
+              </div>
+            </div>
+            <div class="addToPlaylistItem__actions g-flex-row-centered">
+              ${playlistData.tracks.map(track => track.id).includes(trackData.id) ? '<button class="addToPlaylistButton sc-button sc-button-medium sc-button-responsive sc-button-selected" tabindex="0" title="Remove">Added</button>' : '<button class="addToPlaylistButton sc-button sc-button-medium sc-button-responsive" tabindex="0" title="Add to playlist">Add to playlist</button>'}
+            </div>
+          </div>
+        </li>
+      `)
       const addToPlaylistButton = dom.querySelector('.addToPlaylistButton')
       const count = dom.querySelector('.addToPlaylistItem__count')
       let isWorking = false
@@ -349,7 +349,7 @@ const tracksObserver = new MutationObserver(mutations => {
                 }
                 filter.addEventListener('input', filterInputHandler)
                 filterInputHandler()
-            })
+              })
 
             // Clear button
             poll(() => node.querySelector('.addToPlaylistList button.textfield__clear'), 100, 5000)

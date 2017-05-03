@@ -4,80 +4,80 @@
 // https://hackernoon.com/how-i-converted-my-react-app-to-vanillajs-and-whether-or-not-it-was-a-terrible-idea-4b14b1b2faff
 
 const attributeExceptions = [
-  `role`,
-];
+  `role`
+]
 
-function appendText(el, text) {
-  const textNode = document.createTextNode(text);
-  el.appendChild(textNode);
+function appendText (el, text) {
+  const textNode = document.createTextNode(text)
+  el.appendChild(textNode)
 }
 
-function appendArray(el, children) {
+function appendArray (el, children) {
   children.forEach((child) => {
     if (Array.isArray(child)) {
-      appendArray(el, child);
+      appendArray(el, child)
     } else if (child instanceof window.Element) {
-      el.appendChild(child);
+      el.appendChild(child)
     } else if (typeof child === `string`) {
-      appendText(el, child);
+      appendText(el, child)
     }
-  });
+  })
 }
 
-function setStyles(el, styles) {
+function setStyles (el, styles) {
   if (!styles) {
-    el.removeAttribute(`styles`);
-    return;
+    el.removeAttribute(`styles`)
+    return
   }
 
   Object.keys(styles).forEach((styleName) => {
     if (styleName in el.style) {
-      el.style[styleName] = styles[styleName]; // eslint-disable-line no-param-reassign
+      el.style[styleName] = styles[styleName] // eslint-disable-line no-param-reassign
     } else {
-      console.warn(`${styleName} is not a valid style for a <${el.tagName.toLowerCase()}>`);
+      console.warn(`${styleName} is not a valid style for a <${el.tagName.toLowerCase()}>`)
     }
-  });
+  })
 }
 
-function makeElement(type, textOrPropsOrChild, ...otherChildren) {
-  const el = document.createElement(type);
+function makeElement (type, textOrPropsOrChild, ...otherChildren) {
+  const el = document.createElement(type)
 
   if (Array.isArray(textOrPropsOrChild)) {
-    appendArray(el, textOrPropsOrChild);
+    appendArray(el, textOrPropsOrChild)
   } else if (textOrPropsOrChild instanceof window.Element) {
-    el.appendChild(textOrPropsOrChild);
+    el.appendChild(textOrPropsOrChild)
   } else if (typeof textOrPropsOrChild === `string`) {
-    appendText(el, textOrPropsOrChild);
+    appendText(el, textOrPropsOrChild)
   } else if (typeof textOrPropsOrChild === `object`) {
     Object.keys(textOrPropsOrChild).forEach((propName) => {
       if (propName in el || attributeExceptions.includes(propName)) {
-        const value = textOrPropsOrChild[propName];
+        const value = textOrPropsOrChild[propName]
 
         if (propName === `style`) {
-          setStyles(el, value);
+          setStyles(el, value)
         } else if (value) {
-          el[propName] = value;
+          el[propName] = value
         }
       } else {
-        console.warn(`${propName} is not a valid property of a <${type}>`);
+        console.warn(`${propName} is not a valid property of a <${type}>`)
       }
-    });
+    })
   }
 
-  if (otherChildren) appendArray(el, otherChildren);
+  if (otherChildren) appendArray(el, otherChildren)
 
-  return el;
+  return el
 }
 
-const a = (...args) => makeElement(`a`, ...args);
-const button = (...args) => makeElement(`button`, ...args);
-const div = (...args) => makeElement(`div`, ...args);
-const h1 = (...args) => makeElement(`h1`, ...args);
-const header = (...args) => makeElement(`header`, ...args);
-const p = (...args) => makeElement(`p`, ...args);
-const span = (...args) => makeElement(`span`, ...args);
+const a = (...args) => makeElement(`a`, ...args)
+const button = (...args) => makeElement(`button`, ...args)
+const div = (...args) => makeElement(`div`, ...args)
+const h1 = (...args) => makeElement(`h1`, ...args)
+const header = (...args) => makeElement(`header`, ...args)
+const p = (...args) => makeElement(`p`, ...args)
+const span = (...args) => makeElement(`span`, ...args)
 
 // Custom
-const li = (...args) => makeElement(`li`, ...args);
-const input = (...args) => makeElement(`input`, ...args);
-const label = (...args) => makeElement(`label`, ...args);
+const li = (...args) => makeElement(`li`, ...args)
+const input = (...args) => makeElement(`input`, ...args)
+const label = (...args) => makeElement(`label`, ...args)

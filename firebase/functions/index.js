@@ -39,13 +39,13 @@ function getRedirectUri () {
 }
 
 function getConnectUrl (state) {
-  return 'https://soundcloud.com/connect?'
-    + `state=${state}`
-    + `&client_id=${encodeURIComponent(getClientId())}`
-    + `&redirect_uri=${encodeURIComponent(getRedirectUri())}`
-    + `&display=popup`
-    + `&response_type=code`
-    + `&scope=non-expiring`
+  return 'https://soundcloud.com/connect?' +
+    `state=${state}` +
+    `&client_id=${encodeURIComponent(getClientId())}` +
+    `&redirect_uri=${encodeURIComponent(getRedirectUri())}` +
+    `&display=popup` +
+    `&response_type=code` +
+    `&scope=non-expiring`
 }
 
 function getOauthTokenFormData (code) {
@@ -58,7 +58,7 @@ function getOauthTokenFormData (code) {
   return form
 }
 
-function createFirebaseAccount(accessToken, soundcloudId, displayName, photoURL) {
+function createFirebaseAccount (accessToken, soundcloudId, displayName, photoURL) {
   // The new user's Firebase profile
   const uid = soundcloudId.toString()
   const profile = {
@@ -213,7 +213,6 @@ apiRouter.get('/unmarkCollaborative', (req, res) => {
       if (err) {
         console.error(err)
         res.status(500).json({ error: 'Internal server error.' })
-        return
       }
     })
   })
@@ -408,6 +407,6 @@ apiRouter.get('/getTrackDataById', (req, res) => {
 // TODO: 404s for routes that don't exist?
 exports.api = functions.https.onRequest((req, res) => {
   // https://github.com/firebase/firebase-functions/issues/27
-  req.url = req.path ? req.url : `/${req.url}`;
+  req.url = req.path ? req.url : `/${req.url}`
   return apiRouter(req, res)
 })

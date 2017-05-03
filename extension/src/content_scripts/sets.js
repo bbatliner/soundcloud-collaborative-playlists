@@ -46,10 +46,10 @@ const { getCollaborators, setCollaboratorById } = (function () {
       // Update list of collaborators
       getPlaylistData()
         .then(playlistData => {
-            if (playlistData == null) {
-              return { collaborators: {} }
-            }
-            return fetchAuthenticated(`/api/collaborators?playlistId=${playlistData.id}`).then(response => response.json())
+          if (playlistData == null) {
+            return { collaborators: {} }
+          }
+          return fetchAuthenticated(`/api/collaborators?playlistId=${playlistData.id}`).then(response => response.json())
         })
         .then(response => {
           resolve(response.collaborators || {})
@@ -220,24 +220,24 @@ function getPlaylistArtworkUrl () {
 }
 
 function createCollaboratorListItem (userData, isNew) {
-  const dom = stringToDom([
-    '<li class="editTrackList__item sc-border-light-bottom" style="display: list-item;">',
-      '<div class="editTrackItem sc-type-small">',
-        '<div class="editTrackItem__image sc-media-image">',
-          `<div class="image m-sound image__lightOutline readOnly customImage sc-artwork sc-artwork-placeholder-10 m-loaded" style="height: 30px; width: 30px;"><span style="background-image: url(&quot;${userData.avatar_url}&quot;); width: 30px; height: 30px; opacity: 1;" class="sc-artwork sc-artwork-placeholder-10 image__full g-opacity-transition"></span>`,
-          '</div>',
-        '</div>',
-        '<div class="sc-media-content sc-truncate">',
-          `<span class="sc-link-light" data-id="${userData.id}">${userData.full_name}</span>`,
-        '</div>',
-        '<div class="editTrackItem__additional">',
-          '<button class="editTrackItem__remove g-button-remove" title="Revoke collaborator access">',
-            'Revoke collaborator access',
-          '</button>',
-        '</div>',
-      '</div>',
-    '</li>'
-  ].join(''))
+  const dom = stringToDom(`
+    <li class="editTrackList__item sc-border-light-bottom" style="display: list-item;">
+      <div class="editTrackItem sc-type-small">
+        <div class="editTrackItem__image sc-media-image">',
+          <div class="image m-sound image__lightOutline readOnly customImage sc-artwork sc-artwork-placeholder-10 m-loaded" style="height: 30px; width: 30px;"><span style="background-image: url(&quot;${userData.avatar_url}&quot;); width: 30px; height: 30px; opacity: 1;" class="sc-artwork sc-artwork-placeholder-10 image__full g-opacity-transition"></span>
+          </div>
+        </div>
+        <div class="sc-media-content sc-truncate">',
+          <span class="sc-link-light" data-id="${userData.id}">${userData.full_name}</span>
+        </div>
+        <div class="editTrackItem__additional">
+          <button class="editTrackItem__remove g-button-remove" title="Revoke collaborator access">
+          Revoke collaborator access
+        </button>
+        </div>
+      </div>
+    </li>
+  `)
   const removeButton = dom.querySelector('.g-button-remove')
   removeButton.addEventListener('click', () => {
     setCollaboratorById(userData.id, false).then(() => {
@@ -321,7 +321,7 @@ const setsObserver = new MutationObserver(mutations => {
                     el.classList.remove('toRemove')
                   })
                   createGritter({
-                    text: 'Unable to save playlist. Try again later.',
+                    text: 'Unable to save playlist. Try again later.'
                     image: getPlaylistArtworkUrl().replace('500x500', '50x50')
                   })
                 })
@@ -389,17 +389,19 @@ const setsObserver = new MutationObserver(mutations => {
         tab.appendChild(list)
 
         // "Add Collaborator" input
-        const input = stringToDom([
-          '<div><div class="textfield" id="scCollaboratorTextfield">',
-            '<label for="scCollaboratorInput">',
-              '<span class="textfield__label">Add collaborator</span>',
-            '</label>',
-            '<div class="textfield__inputWrapper">',
-              '<input class="textfield__input sc-input sc-input-medium" id="scCollaboratorInput" type="text">',
-            '</div>',
-          '</div>',
-          '<button class="sc-button sc-button-medium sc-button-responsive" id="scCollaboratorButton">Add</button></div>'
-        ].join(''))
+        const input = stringToDom(`
+          <div>
+            <div class="textfield" id="scCollaboratorTextfield">
+              <label for="scCollaboratorInput">
+                <span class="textfield__label">Add collaborator</span>
+              </label>
+              <div class="textfield__inputWrapper">
+                <input class="textfield__input sc-input sc-input-medium" id="scCollaboratorInput" type="text">
+              </div>
+            </div>
+            <button class="sc-button sc-button-medium sc-button-responsive" id="scCollaboratorButton">Add</button>
+          </div>
+        `)
         tab.appendChild(input)
 
         const textfield = tab.querySelector('#scCollaboratorTextfield')

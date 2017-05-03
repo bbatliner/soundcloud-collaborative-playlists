@@ -107,7 +107,6 @@ function createPlaylistBadgeItem (playlistData) {
           const playing = node.textContent === 'Pause current'
           if (playing) {
             togglePlayStyles(playingFromSet ? 'play' : 'pause')
-            return
           }
         })
       })

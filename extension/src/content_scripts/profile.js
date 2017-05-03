@@ -118,7 +118,6 @@ function createSetListItem (playlistData) {
           const playing = node.textContent === 'Pause current'
           if (playing) {
             togglePlayStyles(playingFromSet ? 'play' : 'pause')
-            return
           }
         })
       })
@@ -148,16 +147,16 @@ function showCollaborativeSets () {
   })
   .then(([list, badgeItems]) => {
     badgeItems.forEach(item => {
-    item.style.opacity = 0
-    item.classList.add('g-opacity-transition')
-    list.appendChild(item)
-    setTimeout(() => { item.style.opacity = 1 }, 10)
+      item.style.opacity = 0
+      item.classList.add('g-opacity-transition')
+      list.appendChild(item)
+      setTimeout(() => { item.style.opacity = 1 }, 10)
     })
   })
 }
 const showCollaborativeSetsIfLocation = () => {
   if (getLocationHref().match(profileRegex)) {
-  showCollaborativeSets()
+    showCollaborativeSets()
   }
 }
 onUrlChange(showCollaborativeSetsIfLocation)
