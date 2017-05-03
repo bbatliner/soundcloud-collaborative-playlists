@@ -321,7 +321,7 @@ const setsObserver = new MutationObserver(mutations => {
                     el.classList.remove('toRemove')
                   })
                   createGritter({
-                    text: 'Unable to save playlist. Try again later.'
+                    text: 'Unable to save playlist. Try again later.',
                     image: getPlaylistArtworkUrl().replace('500x500', '50x50')
                   })
                 })

@@ -349,7 +349,7 @@ function timeSince (date) {
 
 // https://gomakethings.com/climbing-up-and-down-the-dom-tree-with-vanilla-javascript/
 var getClosest = function (selector, elem) {
-    // Element.matches() polyfill
+  // Element.matches() polyfill
   if (!Element.prototype.matches) {
     Element.prototype.matches =
             Element.prototype.matchesSelector ||
@@ -365,7 +365,7 @@ var getClosest = function (selector, elem) {
             }
   }
 
-    // Get closest match
+  // Get closest match
   for (; elem && elem !== document; elem = elem.parentNode) {
     if (elem.matches(selector)) return elem
   }
@@ -398,7 +398,7 @@ function stringToDom (html) {
     if (tag.toLowerCase() === 'body') {
       var dom = document.implementation.createDocument('http://www.w3.org/1999/xhtml', 'html', null)
       var body = document.createElement('body')
-            // keeping the attributes
+      // keeping the attributes
       element.innerHTML = html.replace(/<body/g, '<div').replace(/<\/body>/g, '</div>')
       var attrs = element.firstChild.attributes
       body.innerHTML = html
@@ -410,7 +410,7 @@ function stringToDom (html) {
       var map = wrapMap[tag] || wrapMap._default, element
       html = map[1] + html + map[2]
       element.innerHTML = html
-            // Descend through wrappers to the right content
+      // Descend through wrappers to the right content
       var j = map[0] + 1
       while (j--) {
         element = element.lastChild
