@@ -31,6 +31,7 @@
         "src/content_scripts/sets.js",
         "src/content_scripts/tracks.js",
         "src/content_scripts/playlists.js",
+        "src/content_scripts/collection.js",
         "src/content_scripts/profile.js",
         "src/content_scripts/any.js"
       ]

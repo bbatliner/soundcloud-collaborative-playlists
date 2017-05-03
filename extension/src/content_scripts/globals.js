@@ -4,6 +4,7 @@ const CLIENT_ID = 'QRU7nXBB8VqgGUz3eMl8Jjrr7CgFAE9J'
 const setRegex = /^https:\/\/soundcloud\.com\/[^\/]+\/sets\/[^\/]+$/
 const trackRegex = /^https:\/\/soundcloud\.com\/(?!you|stream|search)[^\/]+\/[^\/]+(\?in=.*)?$/
 const playlistRegex = /^https:\/\/soundcloud\.com\/you\/sets$/
+const collectionRegex = /^https:\/\/soundcloud\.com\/you\/collection$/
 const profileRegex = /^https:\/\/soundcloud\.com\/(?!you)[^\/]+\/sets$/
 
 const fetchAuthenticated = (function () {
