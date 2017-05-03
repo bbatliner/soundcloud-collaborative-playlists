@@ -105,6 +105,7 @@ function showCollaborativeTracks () {
   })
   const listPromise = poll(() => document.querySelector('.trackList__list'), 10, 5000)
 
+  // TODO: don't use Promise.all because we don't want to wait for everything to load
   // Update track items with collaborative avatars
   Promise.all([collaborativeTracksPromise, collaborativeTracksArrDataPromise, listPromise])
     .then(([collaborativeTracks, collaborativeTracksDataArr, list]) => {
@@ -163,37 +164,6 @@ function showCollaborativeTracks () {
         })
       })
     })
-
-  // Add event listeners to each track that will let the user add them to collaborative playlists (fetch the correct data)
-  listPromise.then(list => {
-    function addListener (listItem) {
-      const title = listItem.querySelector('.trackItem__trackTitle')
-      if (!title) {
-        return
-      }
-      listItem.addEventListener('click', () => {
-        window.currentTrackUrl = title.href
-      })
-    }
-
-    // Add existing tracks
-    Array.from(list.children).forEach(addListener)
-
-    // Observe future tracks and add them, too
-    const listObserver = new MutationObserver(mutations => {
-      mutations.forEach(mutation => {
-        mutation.addedNodes.forEach(node => {
-          if (node.querySelector && node.querySelector('.trackItem__trackTitle') && list.contains(node)) {
-            addListener(getClosest('.trackList__item', node))
-          }
-        })
-      })
-    })
-    listObserver.observe(list, {
-      childList: true,
-      subtree: true
-    })
-  })
 }
 const showCollaborativeTracksIfLocation = () => {
   if (location.href.match(setRegex)) {

@@ -94,11 +94,11 @@ exports.redirect = functions.https.onRequest((req, res) => {
 exports.token = functions.https.onRequest((req, res) => {
   cookieParser()(req, res, () => {
     if (!req.cookies.state) {
-      res.send(401, 'State cookie not set or expired. Please try again.')
+      res.status(401).json({ error: 'State cookie not set or expired. Please try again.' })
       return
     }
     if (req.cookies.state !== req.query.state) {
-      res.send(401, 'State did not match. Please try again.')
+      res.status(401).json({ error: 'State did not match. Please try again.' })
       return
     }
     const options = {
@@ -166,7 +166,7 @@ function ensurePlaylistOwnership (playlistId) {
       })
       .catch(err => {
         console.error(err)
-        res.status(500).send({ error: 'Internal server error.' })
+        res.status(500).json({ error: 'Internal server error.' })
       })
   }
 }
@@ -326,11 +326,11 @@ function addRemoveHelper (req, res, tracksFn, collaboratorInfo) {
     })
     .catch(err => {
       if (err.status) {
-        res.status(err.status).send(err.body)
+        res.status(err.status).json(err.body)
         return
       }
       console.error(err)
-      res.status(500).send({ error: 'Internal server error.' })
+      res.status(500).json({ error: 'Internal server error.' })
     })
 }
 
@@ -381,8 +381,28 @@ apiRouter.get('/getTracks', (req, res) => {
     res.json({ tracks: snapshot.val() })
   }, (err) => {
     console.error(err)
-    res.status(500).send({ error: 'Internal server error.' })
+    res.status(500).json({ error: 'Internal server error.' })
   })
+})
+
+apiRouter.get('/getTrackDataById', (req, res) => {
+  function trackEmbedPageToJson (html) {
+    return JSON.parse(html.substring(html.indexOf('artwork_url') - 2, html.indexOf('}}]}]') + 2))
+  }
+  if (!req.query.trackId) {
+    res.status(400).json({ error: 'trackId is required.' })
+    return
+  }
+  fetch(`https://w.soundcloud.com/player/?url=https%3A//api.soundcloud.com/tracks/${req.query.trackId}`)
+    .then(response => response.text())
+    .then(trackEmbedPageToJson)
+    .then(data => {
+      res.json(data)
+    })
+    .catch(err => {
+      console.error(err)
+      res.status(500).json({ error: 'Internal server error.' })
+    })
 })
 
 // TODO: 404s for routes that don't exist?

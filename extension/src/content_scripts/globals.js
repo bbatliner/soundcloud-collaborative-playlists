@@ -252,7 +252,7 @@ function getAnyPlaylistData (url) {
 }
 
 function trackPageToJson (html) {
-  return JSON.parse(html.substring(html.indexOf('artwork_url') - 3, html.indexOf('}]}}}]') + 6))[0]
+  return JSON.parse(html.substring(html.indexOf('artwork_url') - 2, html.indexOf('}]}}}') + 5))
 }
 
 function checkTrackError ({ err, url, trackId } = {}) {
@@ -261,7 +261,9 @@ function checkTrackError ({ err, url, trackId } = {}) {
     if (url) {
       return fetch(url).then(response => response.text()).then(trackPageToJson)
     }
-    console.warn(`Track ${trackId} might not be available in your country, or API access has been disabled.`)
+    if (trackId) {
+      return fetchAuthenticated(`/api/getTrackDataById?trackId=${trackId}`).then(response => response.json())
+    }
     throw err
   }
   throw err

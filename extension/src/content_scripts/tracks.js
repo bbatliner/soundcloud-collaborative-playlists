@@ -121,7 +121,10 @@ function createPlaylistListItem (playlistData) {
                 image: playlistData.artwork_url || playlistData.tracks[0].artwork_url
               })
               isWorking = false
-              return getAnyPlaylistData(getLocationHref())
+              if (getLocationHref().match(trackRegex)) {
+                return getAnyPlaylistData(getLocationHref())
+              }
+              return {}
             })
             .then(locationPlaylistData => {
               if (playlistData.id === locationPlaylistData.id) {
@@ -162,7 +165,10 @@ function createPlaylistListItem (playlistData) {
               addToPlaylistButton.classList.remove('sc-button-selected')
               addToPlaylistButton.title = 'Add to playlist'
               isWorking = false
-              return getAnyPlaylistData(getLocationHref())
+              if (getLocationHref().match(trackRegex)) {
+                return getAnyPlaylistData(getLocationHref())
+              }
+              return {}
             })
             .then(locationPlaylistData => {
               if (playlistData.id === locationPlaylistData.id) {
