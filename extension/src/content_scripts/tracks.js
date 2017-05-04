@@ -1,25 +1,5 @@
 'use strict'
 
-const getEditablePlaylists = (function () {
-  function getPromise () {
-    return new Promise((resolve, reject) => {
-      // Update list of editable playlists
-      fetchAuthenticated(`/api/editablePlaylists`).then(resp => resp.json())
-        .then(response => {
-          resolve(response.editablePlaylists || {})
-        })
-        .catch(reject)
-    })
-  }
-  let editablePlaylistsPromise = getPromise()
-  onUrlChange(() => {
-    if (getLocationHref().match(trackRegex)) {
-      editablePlaylistsPromise = getPromise()
-    }
-  })
-  return () => editablePlaylistsPromise
-}())
-
 const getTrackData = (function () {
   function getPromise () {
     return getAnyTrackData(getLocationHref())

@@ -1,6 +1,5 @@
-'use strict';
+'use strict'
 
-const del = require('del')
 const gulp = require('gulp')
 const standard = require('gulp-standard')
 const webpack = require('gulp-webpack')
@@ -21,11 +20,12 @@ gulp.task('standard', function () {
     }))
 })
 
-gulp.task('clean', function () {
-  del.sync('extension/build/*')
+gulp.task('prebuild:js', ['standard'], function () {
+  return gulp.src('extension/build/*', { read: false })
+    .pipe(clean())
 })
 
-gulp.task('build:js', function () {
+gulp.task('build:js', ['prebuild:js'], function () {
   return gulp.src('extension/src/content_scripts/index.js')
     .pipe(webpack({
       quiet: true,
@@ -42,10 +42,10 @@ gulp.task('build:js', function () {
             }]]
           }
         }]
-      },
+      }
     }))
     .pipe(babili())
     .pipe(gulp.dest('extension/build/'))
 })
 
-gulp.task('default', ['clean', 'build:js'])
+gulp.task('default', ['build:js'])

@@ -170,24 +170,7 @@ export function getAnyTrackData (url) {
     })
 }
 
-// TODO: these seem like they should be moved elsewhere...
-
-export const getUserData = (function () {
-  let userPromise
-  return function getUserData () {
-    // Lazy load user data!
-    if (!userPromise) {
-      userPromise = poll(() => document.querySelector('.userNav__usernameButton'))
-        .then(el => {
-          const href = el.href
-          const permalink = href.substring(href.lastIndexOf('/') + 1)
-          return getAnyUserData(permalink)
-        })
-    }
-    return userPromise
-  }
-}())
-
+// TODO: this shouldn't exist
 export const getPlaylistData = (function () {
   let playlistPromise = Promise.resolve(null)
 
@@ -203,3 +186,11 @@ export const getPlaylistData = (function () {
     return playlistPromise
   }
 }())
+
+export function getEditablePlaylists () {
+  return fetchAuthenticated(`/api/editablePlaylists`)
+    .then(response => response.json())
+    .then(response => {
+      return response.editablePlaylists || {}
+    })
+}

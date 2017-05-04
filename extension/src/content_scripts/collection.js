@@ -1,6 +1,11 @@
-'use strict'
+import { runOnPage } from './util/extension'
+import { poll } from './util/dom'
+import { getAnyPlaylistDataById, getEditablePlaylists } from './util/data'
 
-function updateRecentlyPlayed () {
+const MutationObserver = window.MutationObserver
+const collectionRegex = /^https:\/\/soundcloud\.com\/you\/collection$/
+
+runOnPage(collectionRegex, function updateRecentlyPlayed () {
   getEditablePlaylists()
     .then(editablePlaylists => {
       const listPromise = poll(() => document.querySelector('.lazyLoadingList__list'), 10, 5000)
@@ -36,12 +41,4 @@ function updateRecentlyPlayed () {
         })
       })
     })
-}
-
-const updateRecentlyPlayedIfLocation = () => {
-  if (getLocationHref().match(collectionRegex)) {
-    setTimeout(() => updateRecentlyPlayed(), 0)
-  }
-}
-onUrlChange(updateRecentlyPlayedIfLocation)
-updateRecentlyPlayedIfLocation()
+})
