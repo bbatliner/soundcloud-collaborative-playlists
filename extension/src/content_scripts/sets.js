@@ -1,5 +1,7 @@
 import { MutationObserver, Image } from './util/window'
 import { runOnPage } from './util/extension'
+import { fetchAuthenticated } from './util/auth'
+
 import {
   stringToDom,
   poll,
@@ -9,7 +11,6 @@ import {
 } from './util/dom'
 
 import {
-  fetchAuthenticated,
   getAnyTrackDataById,
   getUserData,
   getAnyUserData,

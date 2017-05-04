@@ -27,7 +27,9 @@ export function createGritter (options) {
     options.class_name = 'no-title'
   }
   const id = window.$.gritter.add(options)
-  document.getElementById(`gritter-item-${id}`).querySelector('.gritter-close').textContent = ''
+  const gritter = document.getElementById(`gritter-item-${id}`)
+  gritter.querySelector('.gritter-close').textContent = ''
+  gritter.querySelector('.gritter-image').style.boxShadow = 'none'
 }
 
 export function initializeTabSwitching (node) {

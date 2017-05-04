@@ -1,4 +1,5 @@
-import { poll, createGritter } from './dom'
+import { fetchAuthenticated } from './auth'
+import { poll } from './dom'
 import { getLocationHref } from './window'
 
 const CLIENT_ID = 'QRU7nXBB8VqgGUz3eMl8Jjrr7CgFAE9J'
@@ -41,91 +42,6 @@ function checkTrackError ({ err, url, trackId } = {}) {
   }
   throw err
 }
-
-export const fetchAuthenticated = (function () {
-  // Bootstrap the iframe that will communicate Firebase authentication state to the extension
-  const tokenIframe = document.createElement('iframe')
-  tokenIframe.src = `https://collaborative-playlists.firebaseapp.com/getToken.html`
-  tokenIframe.height = 0
-  tokenIframe.width = 0
-  tokenIframe.style.display = 'none'
-
-  // A helper function to add a message listener from the iframe, and run appropriate callbacks.
-  function addEventListener ({ success, fail, runOnce }) {
-    window.addEventListener('message', function handler (e) {
-      if (e.origin === 'https://collaborative-playlists.firebaseapp.com') {
-        if (runOnce === true) {
-          window.removeEventListener('message', handler)
-        }
-        if (e.data !== 'UNAUTHORIZED') {
-          success(e)
-        } else {
-          fail(e)
-        }
-      }
-    })
-  }
-
-  // The first token Promise is purely asynchronous - it waits until the first message is received
-  let tokenPromise = new Promise((resolve, reject) => {
-    addEventListener({
-      runOnce: true,
-      success (e) {
-        resolve(e.data)
-      },
-      fail () {
-        createGritter({
-          // TODO: Show extension icon in `image` option
-          text: 'You are not logged in to Collaborative Playlists. Click the extension icon to log in.'
-        })
-        reject(new Error('Unauthorized'))
-      }
-    })
-  })
-  // Subsequent token Promises are basically synchronous. They update tokenPromise to the latest value
-  function addUpdater () {
-    addEventListener({
-      success (e) {
-        createGritter({
-          // TODO: Show extension icon in `image` option
-          text: 'You\'re logged in! <a onclick="location.reload()">Refresh</a> to enable collaborative content.'
-        })
-        tokenPromise = Promise.resolve(e.data)
-      },
-      fail () {
-        createGritter({
-          // TODO: Show extension icon in `image` option
-          text: 'You signed out of Collaborative Playlists. Collaborative content will not display.'
-        })
-        tokenPromise = Promise.reject(new Error('Unauthorized'))
-      }
-    })
-  }
-  // Subsequent tokens are listened for after the first one is received (authorized or not)
-  tokenPromise.then(addUpdater).catch(addUpdater)
-
-  // Kick off the messaging
-  document.body.appendChild(tokenIframe)
-
-  // An authenticated fetch will wait, if necessary, for an auth token, and then fetch.
-  return function fetchAuthenticated (path, options = {}) {
-    return tokenPromise.then(token => {
-      options.headers = Object.assign({}, options.headers, { Authorization: `Bearer ${token}` })
-      return fetch(`https://us-central1-collaborative-playlists.cloudfunctions.net${path}`, options)
-    }).then(response => {
-      if (response.status === 401) {
-        createGritter({
-          // TODO: Show extension icon in `image` option
-          text: 'Your data couldn\'t be fetched. Try <a onclick="location.reload()">refreshing</a> or logging in again.'
-        })
-      }
-      if (response.status >= 400) {
-        throw new Error(`${response.url} ${response.status}`)
-      }
-      return response
-    })
-  }
-}())
 
 export const getUserData = (function () {
   let userPromise
@@ -198,11 +114,25 @@ export function getEditablePlaylists () {
 
 export function getPlaylistDataHere () {
   return getAnyPlaylistData(getLocationHref())
+    .catch(err => {
+      if (err.response && err.response.status === 404) {
+        return null
+      }
+      throw err
+    })
 }
 
 export function getTrackDataHere () {
+  let trackDataPromise
   if (window.currentTrackUrl) {
-    return getAnyTrackData(window.currentTrackUrl)
+    trackDataPromise = getAnyTrackData(window.currentTrackUrl)
+  } else {
+    trackDataPromise = getAnyTrackData(getLocationHref())
   }
-  return getAnyTrackData(getLocationHref())
+  return trackDataPromise.catch(err => {
+    if (err.response && err.response.status === 404) {
+      return null
+    }
+    throw err
+  })
 }

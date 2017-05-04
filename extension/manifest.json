@@ -1,19 +1,24 @@
 {
+    "manifest_version": 2,
     "name": "SoundCloud Collaborative Playlists",
     "version": "0.0.1",
-    "manifest_version": 2,
+
     "description": "View, manage, and play collaborative playlists on SoundCloud - better with friends.",
     "icons": {
         "16": "icons/icon16.png",
         "48": "icons/icon48.png",
         "128": "icons/icon128.png"
     },
+
+    "background": {
+        "scripts": ["build/background.js"],
+        "persistent": false
+    },
     "browser_action": {
+        "default_icon": "icons/icon16-gray.png",
         "default_popup": "build/popup.html"
     },
     "permissions": [
-        "tabs",
-        "notifications",
         "https://soundcloud.com/*"
     ],
     "content_scripts": [{
@@ -28,5 +33,8 @@
             "vendor/jquery.gritter.min.js",
             "build/contentScripts.js"
         ]
-    }]
+    }],
+    "web_accessible_resources": [
+        "icons/*.png"
+    ]
 }

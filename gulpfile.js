@@ -22,15 +22,19 @@ gulp.task('standard', function () {
 })
 
 gulp.task('prebuild:js', ['standard'], function () {
-  return gulp.src('extension/build/*.js', { read: false })
+  return gulp.src('extension/build/**/*.js', { read: false })
     .pipe(clean())
 })
 
 gulp.task('build:js', ['prebuild:js'], function () {
-  return gulp.src('extension/index.js')
+  return gulp.src(['extension/src/content_scripts/index.js', 'extension/src/background/index.js'])
     .pipe(webpack({
+      entry: {
+        contentScripts: './extension/src/content_scripts/index.js',
+        background: './extension/src/background/index.js'
+      },
       output: {
-        filename: 'contentScripts.js'
+        filename: '[name].js'
       },
       module: {
         loaders: [{
@@ -61,7 +65,7 @@ gulp.task('minify:js', ['build:js'], function () {
 })
 
 gulp.task('prebuild:html', function () {
-  return gulp.src('extension/build/*.html', { read: false })
+  return gulp.src('extension/build/**/*.html', { read: false })
     .pipe(clean())
 })
 

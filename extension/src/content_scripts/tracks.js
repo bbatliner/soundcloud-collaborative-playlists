@@ -1,4 +1,5 @@
 import { MutationObserver } from './util/window'
+import { fetchAuthenticated } from './util/auth'
 
 import {
   stringToDom,
@@ -10,7 +11,6 @@ import {
 } from './util/dom'
 
 import {
-  fetchAuthenticated,
   getAnyPlaylistData,
   getAnyPlaylistDataById,
   getEditablePlaylists,
@@ -100,14 +100,10 @@ function createPlaylistListItem (playlistData) {
                 image: playlistData.artwork_url || playlistData.tracks[0].artwork_url
               })
               isWorking = false
-              // const locationHref = getLocationHref()
-              // if (locationHref.match(trackRegex)) {
               return getPlaylistDataHere()
-              // }
-              // return {}
             })
             .then(locationPlaylistData => {
-              if (playlistData.id === locationPlaylistData.id) {
+              if (locationPlaylistData && playlistData.id === locationPlaylistData.id) {
                 const title = Array.from(document.querySelectorAll('.trackItem__trackTitle')).filter(title => title.innerText === trackData.title)[0]
                 const item = getClosest('.trackList__item', title)
                 item.style.display = 'block'
@@ -148,7 +144,7 @@ function createPlaylistListItem (playlistData) {
               return getPlaylistDataHere()
             })
             .then(locationPlaylistData => {
-              if (playlistData.id === locationPlaylistData.id) {
+              if (locationPlaylistData && playlistData.id === locationPlaylistData.id) {
                 const title = Array.from(document.querySelectorAll('.trackItem__trackTitle')).filter(title => title.innerText === trackData.title)[0]
                 const item = getClosest('.trackList__item', title)
                 item.style.display = 'none'
