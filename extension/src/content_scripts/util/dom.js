@@ -147,7 +147,7 @@ export function createPlaylistItemCreator ({ templateFn, onPause = () => {}, onP
         playControlsPlayButton.click()
       } else {
         // Otherwise navigate to the set page and click the play/pause button
-        dom.querySelector('.soundTitle__title').click()
+        dom.querySelector('[href]').click()
         poll(() => document.querySelector('.fullHero__title .soundTitle__playButton .playButton'), 10, 5000)
           .then(realPlayButton => {
             realPlayButton.click()

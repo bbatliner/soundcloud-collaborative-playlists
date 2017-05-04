@@ -305,6 +305,7 @@ const setsObserver = new MutationObserver(mutations => {
                         image: getPlaylistArtworkUrl().replace('500x500', '50x50')
                       })
                     }
+                    // TODO: add Collaborative label
                   } else {
                     console.warn('Unable to close modal - close button not found.')
                   }

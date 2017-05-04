@@ -17,6 +17,7 @@
     "gulp": "^3.9.1",
     "gulp-babili": "0.0.2",
     "gulp-clean": "^0.3.2",
+    "gulp-htmlmin": "^3.0.0",
     "gulp-standard": "^10.0.0",
     "gulp-webpack": "^1.5.0",
     "htmlts-loader": "git+https://github.com/bbatliner/htmlts-loader.git",

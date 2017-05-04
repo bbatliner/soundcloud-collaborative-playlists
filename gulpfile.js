@@ -5,6 +5,7 @@ const standard = require('gulp-standard')
 const webpack = require('gulp-webpack')
 const clean = require('gulp-clean')
 const babili = require('gulp-babili')
+const htmlmin = require('gulp-htmlmin')
 
 gulp.task('standard', function () {
   return gulp.src([
@@ -21,12 +22,12 @@ gulp.task('standard', function () {
 })
 
 gulp.task('prebuild:js', ['standard'], function () {
-  return gulp.src('extension/build/*', { read: false })
+  return gulp.src('extension/build/*.js', { read: false })
     .pipe(clean())
 })
 
 gulp.task('build:js', ['prebuild:js'], function () {
-  return gulp.src('extension/src/content_scripts/index.js')
+  return gulp.src('extension/index.js')
     .pipe(webpack({
       output: {
         filename: 'contentScripts.js'
@@ -50,8 +51,33 @@ gulp.task('build:js', ['prebuild:js'], function () {
         }]
       }
     }))
-    .pipe(babili())
-    .pipe(gulp.dest('extension/build/'))
+    .pipe(gulp.dest('extension/build'))
 })
 
-gulp.task('default', ['build:js'])
+gulp.task('minify:js', ['build:js'], function () {
+  return gulp.src('extension/build/**/*.js')
+    .pipe(babili())
+    .pipe(gulp.dest('extension/build'))
+})
+
+gulp.task('prebuild:html', function () {
+  return gulp.src('extension/build/*.html', { read: false })
+    .pipe(clean())
+})
+
+gulp.task('build:html', ['prebuild:html'], function () {
+  return gulp.src('extension/src/browser_action/*.html')
+    .pipe(gulp.dest('extension/build'))
+})
+
+gulp.task('minify:html', ['build:html'], function () {
+  return gulp.src('extension/build/**/*.html')
+    .pipe(htmlmin({ collapseWhitespace: true, minifyCSS: true, minifyJS: true }))
+    .pipe(gulp.dest('extension/build'))
+})
+
+gulp.task('build', ['build:js', 'build:html'])
+gulp.task('minify', ['minify:js', 'minify:html'])
+
+gulp.task('default', ['build'])
+gulp.task('prod', ['build', 'minify'])
