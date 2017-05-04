@@ -1,13 +1,40 @@
-'use strict'
+import { runOnPage } from './util/extension'
+import { createPlaylistItemCreator, poll } from './util/dom'
+import { getEditablePlaylists, getAnyPlaylistDataById } from './util/data'
+
+const profileRegex = /^https:\/\/soundcloud\.com\/(?!you)[^/]+\/sets$/
+
+// http://stackoverflow.com/a/3177838
+function timeSince (date) {
+  const seconds = Math.floor((new Date() - date) / 1000)
+  let interval = Math.floor(seconds / 31536000)
+
+  if (interval > 1) {
+    return interval + ' years'
+  }
+  interval = Math.floor(seconds / 2592000)
+  if (interval > 1) {
+    return interval + ' months'
+  }
+  interval = Math.floor(seconds / 86400)
+  if (interval > 1) {
+    return interval + ' days'
+  }
+  interval = Math.floor(seconds / 3600)
+  if (interval > 1) {
+    return interval + ' hours'
+  }
+  interval = Math.floor(seconds / 60)
+  if (interval > 1) {
+    return interval + ' minutes'
+  }
+  return Math.floor(seconds) + ' seconds'
+}
 
 // DOM Helpers
-// TODO: this is hella copy pasted from playlists.js
-function createSetListItem (playlistData) {
-  const playControlsVisible = getPlayControlsVisible()
-  const playingFromSet = getPlayingFromSet(playlistData.title, playlistData.user.username)
-  const playControlsPlayButton = document.querySelector('.playControls .playControls__play')
-  const isPlaying = playControlsVisible && playingFromSet && playControlsPlayButton.classList.contains('playing')
-  const dom = stringToDom(`
+const createSetListItem = createPlaylistItemCreator({
+  stayOnPageOnPlay: false,
+  templateFn: (playlistData, isPlaying) => `html
     <li class="soundList__item">
       <div role="group" class="sound playlist streamContext" aria-label="Playlist: ${playlistData.title} by ${playlistData.user.username}">
         <div class="sound__body">
@@ -70,68 +97,11 @@ function createSetListItem (playlistData) {
         </div>
       </div>
     </li>
-  `)
-  const playButton = dom.querySelector('.soundTitle__playButton .playButton')
-  const togglePlayStyles = (override) => {
-    if (override === 'pause' || (override !== 'play' && playButton.classList.contains('sc-button-pause'))) {
-      playButton.classList.remove('sc-button-pause')
-      playButton.title = 'Play'
-      playButton.textContent = 'Play'
-    } else {
-      playButton.classList.add('sc-button-pause')
-      playButton.title = 'Pause'
-      playButton.textContent = 'Pause'
-    }
-  }
-  playButton.addEventListener('click', () => {
-    // Toggle playing
-    // Prefer the play controls, if they're on the page and for this playlist
-    if (getPlayControlsVisible() && getPlayingFromSet(playlistData.title, playlistData.user.username)) {
-      playControlsPlayButton.click()
-    }
-    // Otherwise navigate to the set page and click the play/pause button
-    else {
-      dom.querySelector('.soundTitle__title').click()
-      poll(() => document.querySelector('.fullHero__title .soundTitle__playButton .playButton'), 10, 5000)
-        .then(realPlayButton => {
-          realPlayButton.click()
-        })
-    }
-  })
-  // Pause this playlist when the track changes to something not in this playlist
-  const playControlsElements = document.querySelector('.playControls__elements')
-  if (playControlsElements) {
-    const elementsObserver = new MutationObserver(mutations => {
-      mutations.forEach(mutation => {
-        mutation.addedNodes.forEach(node => {
-          const isTitle = node.classList && node.classList.contains('playbackSoundBadge__titleContextContainer')
-          const isText = node.nodeType === Node.TEXT_NODE
-          if (!isTitle && !isText) {
-            return
-          }
-          const paused = node.textContent === 'Play current'
-          if (paused) {
-            togglePlayStyles('pause')
-            return
-          }
-          const playingFromSet = getPlayingFromSet(playlistData.title, playlistData.user.username)
-          const playing = node.textContent === 'Pause current'
-          if (playing) {
-            togglePlayStyles(playingFromSet ? 'play' : 'pause')
-          }
-        })
-      })
-    })
-    elementsObserver.observe(playControlsElements, {
-      childList: true,
-      subtree: true
-    })
-  }
-  return dom
-}
+  `
+})
 
 // Show collaborative sets
-function showCollaborativeSets () {
+runOnPage(profileRegex, function showCollaborativeSets () {
   getEditablePlaylists()
   .then(editablePlaylists => {
     return Promise.all(Object.keys(editablePlaylists).filter(key => editablePlaylists[key] === true).map(getAnyPlaylistDataById))
@@ -153,11 +123,4 @@ function showCollaborativeSets () {
       setTimeout(() => { item.style.opacity = 1 }, 10)
     })
   })
-}
-const showCollaborativeSetsIfLocation = () => {
-  if (getLocationHref().match(profileRegex)) {
-    showCollaborativeSets()
-  }
-}
-onUrlChange(showCollaborativeSetsIfLocation)
-showCollaborativeSetsIfLocation()
+})

@@ -1,5 +1,7 @@
 import { poll, createGritter } from './dom'
-const fetch = window.fetch
+import { getLocationHref } from './window'
+
+const CLIENT_ID = 'QRU7nXBB8VqgGUz3eMl8Jjrr7CgFAE9J'
 
 function checkStatus (response) {
   if (response.status !== 200) {
@@ -125,6 +127,22 @@ export const fetchAuthenticated = (function () {
   }
 }())
 
+export const getUserData = (function () {
+  let userPromise
+  return function getUserData () {
+    // Lazy load user data!
+    if (!userPromise) {
+      userPromise = poll(() => document.querySelector('.userNav__usernameButton'))
+        .then(el => {
+          const href = el.href
+          const permalink = href.substring(href.lastIndexOf('/') + 1)
+          return getAnyUserData(permalink)
+        })
+    }
+    return userPromise
+  }
+}())
+
 export function getAnyUserDataById (userId) {
   return fetch(`https://api.soundcloud.com/users/${userId}.json?client_id=${CLIENT_ID}`)
     .then(checkStatus)
@@ -170,27 +188,21 @@ export function getAnyTrackData (url) {
     })
 }
 
-// TODO: this shouldn't exist
-export const getPlaylistData = (function () {
-  let playlistPromise = Promise.resolve(null)
-
-  const update = () => {
-    if (getLocationHref().match(setRegex)) {
-      playlistPromise = getAnyPlaylistData(getLocationHref())
-    }
-  }
-  onUrlChange(update)
-  update()
-
-  return function getPlaylistData () {
-    return playlistPromise
-  }
-}())
-
 export function getEditablePlaylists () {
   return fetchAuthenticated(`/api/editablePlaylists`)
     .then(response => response.json())
     .then(response => {
       return response.editablePlaylists || {}
     })
+}
+
+export function getPlaylistDataHere () {
+  return getAnyPlaylistData(getLocationHref())
+}
+
+export function getTrackDataHere () {
+  if (window.currentTrackUrl) {
+    return getAnyTrackData(window.currentTrackUrl)
+  }
+  return getAnyTrackData(getLocationHref())
 }

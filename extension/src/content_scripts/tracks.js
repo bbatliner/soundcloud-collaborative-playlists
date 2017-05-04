@@ -1,57 +1,56 @@
-'use strict'
+import { MutationObserver } from './util/window'
 
-const getTrackData = (function () {
-  function getPromise () {
-    return getAnyTrackData(getLocationHref())
-  }
-  let getTrackDataPromise
-  const updatePromiseIfLocation = () => {
-    if (getLocationHref().match(trackRegex)) {
-      getTrackDataPromise = getPromise()
-    }
-  }
-  onUrlChange(updatePromiseIfLocation)
-  updatePromiseIfLocation()
-  return () => {
-    if (window.currentTrackUrl) {
-      return getAnyTrackData(window.currentTrackUrl).then(data => {
-        delete window.currentTrackUrl
-        return data
-      })
-    }
-    return getTrackDataPromise
-  }
-}())
+import {
+  stringToDom,
+  poll,
+  getClosest,
+  createGritter,
+  doNothing,
+  initializeTabSwitching
+} from './util/dom'
+
+import {
+  fetchAuthenticated,
+  getAnyPlaylistData,
+  getAnyPlaylistDataById,
+  getEditablePlaylists,
+  getPlaylistDataHere,
+  getTrackDataHere
+} from './util/data'
+
+// const trackRegex = /^https:\/\/soundcloud\.com\/(?!you|stream|search)[^/]+\/[^/]+(\?in=.*)?$/
 
 // DOM helpers
 
 // Inject some dank CSS
-document.head.appendChild(stringToDom(`<style>
-  .sc-collaborative-label {
-    margin-left: 10px;
-    height: 26px;
-    line-height: 1.5;
-    user-select: initial;
-    cursor: default;
-  }
-  .sc-collaborative-label-small {
-    padding: 1px 4px;
-    margin-left: 8px;
-    height: 16px;
-    line-height: 1.2;
-    user-select: initial;
-    cursor: default;
-  }
-  .sc-collaborative-label:hover,
-  .sc-collaborative-label-small:hover {
-    cursor: default;
-  }
-</style>`))
+document.head.appendChild(stringToDom(`html
+  <style>
+    .sc-collaborative-label {
+      margin-left: 10px;
+      height: 26px;
+      line-height: 1.5;
+      user-select: initial;
+      cursor: default;
+    }
+    .sc-collaborative-label-small {
+      padding: 1px 4px;
+      margin-left: 8px;
+      height: 16px;
+      line-height: 1.2;
+      user-select: initial;
+      cursor: default;
+    }
+    .sc-collaborative-label:hover,
+    .sc-collaborative-label-small:hover {
+      cursor: default;
+    }
+  </style>
+`))
 
 function createPlaylistListItem (playlistData) {
-  return getTrackData()
+  return getTrackDataHere()
     .then(trackData => {
-      const dom = stringToDom(`
+      const dom = stringToDom(`html
         <li class="addToPlaylistList__item sc-border-light-top sc-collaborative">
           <div class="addToPlaylistItem g-flex-row-centered">
             <a href="${playlistData.permalink_url.replace(/http(s?):\/\/soundcloud.com/, '')}" class="addToPlaylistItem__image" title="${playlistData.title}">
@@ -101,10 +100,11 @@ function createPlaylistListItem (playlistData) {
                 image: playlistData.artwork_url || playlistData.tracks[0].artwork_url
               })
               isWorking = false
-              if (getLocationHref().match(trackRegex)) {
-                return getAnyPlaylistData(getLocationHref())
-              }
-              return {}
+              // const locationHref = getLocationHref()
+              // if (locationHref.match(trackRegex)) {
+              return getPlaylistDataHere()
+              // }
+              // return {}
             })
             .then(locationPlaylistData => {
               if (playlistData.id === locationPlaylistData.id) {
@@ -145,10 +145,7 @@ function createPlaylistListItem (playlistData) {
               addToPlaylistButton.classList.remove('sc-button-selected')
               addToPlaylistButton.title = 'Add to playlist'
               isWorking = false
-              if (getLocationHref().match(trackRegex)) {
-                return getAnyPlaylistData(getLocationHref())
-              }
-              return {}
+              return getPlaylistDataHere()
             })
             .then(locationPlaylistData => {
               if (playlistData.id === locationPlaylistData.id) {
@@ -227,7 +224,7 @@ const tracksObserver = new MutationObserver(mutations => {
             if (playlistDataArr.length !== 0 && !node.querySelector('.addToPlaylistList')) {
               const tabsContainer = node.querySelector('.tabs')
               tabsContainer.removeChild(tabsContainer.querySelector('.tabs__headingContainer'))
-              const tabs = tabsContainer.insertBefore(stringToDom(`
+              const tabs = tabsContainer.insertBefore(stringToDom(`html
                 <div class="tabs__tabs">
                   <ul class="g-tabs g-tabs-large">
                       <li class="g-tabs-item">
@@ -253,7 +250,7 @@ const tracksObserver = new MutationObserver(mutations => {
               document.head.appendChild(stringToDom('<style>.addToPlaylistList__item{padding:10px 0;margin-right:30px;width:100%}.addToPlaylistList__item:first-child{border-top:0;padding-top:0}.addToPlaylistList__item:last-child{padding-bottom:0}</style>'))
 
               // Add "Add to playlist" tab content
-              const tabContent = stringToDom(`
+              const tabContent = stringToDom(`html
                 <div class="tabs__contentSlot" style="display: none;">
                   <div class="addToPlaylist">
                     <section class="g-modal-section sc-clearfix">

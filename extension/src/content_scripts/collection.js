@@ -1,8 +1,8 @@
+import { MutationObserver } from './util/window'
 import { runOnPage } from './util/extension'
 import { poll } from './util/dom'
 import { getAnyPlaylistDataById, getEditablePlaylists } from './util/data'
 
-const MutationObserver = window.MutationObserver
 const collectionRegex = /^https:\/\/soundcloud\.com\/you\/collection$/
 
 runOnPage(collectionRegex, function updateRecentlyPlayed () {

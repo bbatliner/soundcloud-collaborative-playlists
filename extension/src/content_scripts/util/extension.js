@@ -1,4 +1,4 @@
-import { getLocationHref } from './index'
+import { getLocationHref } from './window'
 
 export const onUrlChange = (function () {
   const myScript = document.createElement('script')

@@ -1,3 +1,5 @@
+import { MutationObserver } from './window'
+
 export function doNothing (e) {
   e.preventDefault()
   e.stopPropagation()
@@ -107,4 +109,90 @@ export function stringToDom (html) {
     element = element.lastChild
   }
   return element
+}
+
+export function createPlaylistItemCreator ({ templateFn, onPause = () => {}, onPlay = () => {}, stayOnPageOnPlay = true }) {
+  function getPlayControlsVisible () {
+    const playControls = document.querySelector('.playControls')
+    return playControls && playControls.classList.contains('m-visible')
+  }
+
+  function getPlayingFromSet (setTitle, setOwner) {
+    const playControlsLink = document.querySelector('.playbackSoundBadge__title')
+    return playControlsLink && playControlsLink.href.includes(`?in=${setOwner}/sets/${setTitle}`)
+  }
+
+  return function createPlaylistItem (playlistData) {
+    const playControlsVisible = getPlayControlsVisible()
+    const playingFromSet = getPlayingFromSet(playlistData.title, playlistData.user.username)
+    const playControlsPlayButton = document.querySelector('.playControls .playControls__play')
+    const isPlaying = playControlsVisible && playingFromSet && playControlsPlayButton.classList.contains('playing')
+    const dom = stringToDom(templateFn(playlistData, isPlaying))
+    const playButton = dom.querySelector('.playButton')
+    const togglePlayStyles = (override) => {
+      if (override === 'pause' || (override !== 'play' && playButton.classList.contains('sc-button-pause'))) {
+        playButton.classList.remove('sc-button-pause')
+        playButton.title = 'Play'
+        playButton.textContent = 'Play'
+      } else {
+        playButton.classList.add('sc-button-pause')
+        playButton.title = 'Pause'
+        playButton.textContent = 'Pause'
+      }
+    }
+    playButton.addEventListener('click', () => {
+      // Toggle playing
+      // Prefer the play controls, if they're on the page and for this playlist
+      if (getPlayControlsVisible() && getPlayingFromSet(playlistData.title, playlistData.user.username)) {
+        playControlsPlayButton.click()
+      } else {
+        // Otherwise navigate to the set page and click the play/pause button
+        dom.querySelector('.soundTitle__title').click()
+        poll(() => document.querySelector('.fullHero__title .soundTitle__playButton .playButton'), 10, 5000)
+          .then(realPlayButton => {
+            realPlayButton.click()
+            if (stayOnPageOnPlay === true) {
+              window.history.back(1)
+            }
+          })
+      }
+    })
+    // Pause this playlist when the track changes to something not in this playlist
+    const playControlsElements = document.querySelector('.playControls__elements')
+    if (playControlsElements) {
+      const elementsObserver = new MutationObserver(mutations => {
+        mutations.forEach(mutation => {
+          mutation.addedNodes.forEach(node => {
+            const isTitle = node.classList && node.classList.contains('playbackSoundBadge__titleContextContainer')
+            const isText = node.nodeType === window.Node.TEXT_NODE
+            if (!isTitle && !isText) {
+              return
+            }
+            const paused = node.textContent === 'Play current'
+            if (paused) {
+              onPause.call(dom)
+              togglePlayStyles('pause')
+              return
+            }
+            const playingFromSet = getPlayingFromSet(playlistData.title, playlistData.user.username)
+            const playing = node.textContent === 'Pause current'
+            if (playing) {
+              if (playingFromSet) {
+                onPlay.call(dom)
+                togglePlayStyles('play')
+              } else {
+                onPause.call(dom)
+                togglePlayStyles('pause')
+              }
+            }
+          })
+        })
+      })
+      elementsObserver.observe(playControlsElements, {
+        childList: true,
+        subtree: true
+      })
+    }
+    return dom
+  }
 }

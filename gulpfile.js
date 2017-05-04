@@ -28,7 +28,9 @@ gulp.task('prebuild:js', ['standard'], function () {
 gulp.task('build:js', ['prebuild:js'], function () {
   return gulp.src('extension/src/content_scripts/index.js')
     .pipe(webpack({
-      quiet: true,
+      output: {
+        filename: 'contentScripts.js'
+      },
       module: {
         loaders: [{
           test: /\.js$/,
@@ -41,6 +43,10 @@ gulp.task('build:js', ['prebuild:js'], function () {
               }
             }]]
           }
+        }, {
+          test: /\.js$/,
+          exclude: /node_modules/,
+          loader: 'htmlts-loader'
         }]
       }
     }))

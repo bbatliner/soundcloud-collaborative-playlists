@@ -1,23 +1,22 @@
-'use strict'
+import { MutationObserver } from './util/window'
+import { runOnPage } from './util/extension'
+import { stringToDom, poll, doNothing, createPlaylistItemCreator } from './util/dom'
+import { getEditablePlaylists, getAnyPlaylistDataById } from './util/data'
 
-// DOM helpers
+const playlistRegex = /^https:\/\/soundcloud\.com\/you\/sets$/
 
-function getPlayControlsVisible () {
-  const playControls = document.querySelector('.playControls')
-  return playControls && playControls.classList.contains('m-visible')
-}
-
-function getPlayingFromSet (setTitle, setOwner) {
-  const playControlsLink = document.querySelector('.playbackSoundBadge__title')
-  return playControlsLink && playControlsLink.href.includes(`?in=${setOwner}/sets/${setTitle}`)
-}
-
-function createPlaylistBadgeItem (playlistData) {
-  const playControlsVisible = getPlayControlsVisible()
-  const playingFromSet = getPlayingFromSet(playlistData.title, playlistData.user.username)
-  const playControlsPlayButton = document.querySelector('.playControls .playControls__play')
-  const isPlaying = playControlsVisible && playingFromSet && playControlsPlayButton.classList.contains('playing')
-  const dom = stringToDom(`
+// DOM Helpers
+const createPlaylistBadgeItem = createPlaylistItemCreator({
+  stayOnPageOnPlay: true,
+  onPlay () {
+    const tile = this.querySelector('.audibleTile')
+    tile.classList.add('m-playing')
+  },
+  onPause () {
+    const tile = this.querySelector('.audibleTile')
+    tile.classList.remove('m-playing')
+  },
+  templateFn: (playlistData, isPlaying) => `html
     <li class="badgeList__item collaborativeBadge">
       <div class="audibleTile ${isPlaying ? 'm-playing' : ''}" data-description="always" data-playbutton="hover" data-actions="hover">
         <div class="audibleTile__artwork">
@@ -55,72 +54,11 @@ function createPlaylistBadgeItem (playlistData) {
         </div>
       </div>
     </li>
-  `)
-  const playButton = dom.querySelector('.audibleTile__playButton .playButton')
-  const togglePlayStyles = (override) => {
-    const tile = dom.querySelector('.audibleTile')
-    if (override === 'pause' || (override !== 'play' && playButton.classList.contains('sc-button-pause'))) {
-      tile.classList.remove('m-playing')
-      playButton.classList.remove('sc-button-pause')
-      playButton.title = 'Play'
-      playButton.textContent = 'Play'
-    } else {
-      tile.classList.add('m-playing')
-      playButton.classList.add('sc-button-pause')
-      playButton.title = 'Pause'
-      playButton.textContent = 'Pause'
-    }
-  }
-  playButton.addEventListener('click', () => {
-    // Toggle playing
-    // Prefer the play controls, if they're on the page and for this playlist
-    if (getPlayControlsVisible() && getPlayingFromSet(playlistData.title, playlistData.user.username)) {
-      playControlsPlayButton.click()
-    }
-    // Otherwise navigate to the set page and click the play/pause button
-    else {
-      dom.querySelector('.audibleTile__artworkLink').click()
-      poll(() => document.querySelector('.soundTitle__playButton .playButton'), 10, 5000)
-        .then(realPlayButton => {
-          realPlayButton.click()
-          history.back(1)
-        })
-    }
-  })
-  // Pause this playlist when the track changes to something not in this playlist
-  const playControlsElements = document.querySelector('.playControls__elements')
-  if (playControlsElements) {
-    const elementsObserver = new MutationObserver(mutations => {
-      mutations.forEach(mutation => {
-        mutation.addedNodes.forEach(node => {
-          const isTitle = node.classList && node.classList.contains('playbackSoundBadge__titleContextContainer')
-          const isText = node.nodeType === Node.TEXT_NODE
-          if (!isTitle && !isText) {
-            return
-          }
-          const paused = node.textContent === 'Play current'
-          if (paused) {
-            togglePlayStyles('pause')
-            return
-          }
-          const playingFromSet = getPlayingFromSet(playlistData.title, playlistData.user.username)
-          const playing = node.textContent === 'Pause current'
-          if (playing) {
-            togglePlayStyles(playingFromSet ? 'play' : 'pause')
-          }
-        })
-      })
-    })
-    elementsObserver.observe(playControlsElements, {
-      childList: true,
-      subtree: true
-    })
-  }
-  return dom
-}
+  `
+})
 
 // Show collaborative playlists
-function showCollaborativePlaylists () {
+runOnPage(playlistRegex, function showCollaborativePlaylists () {
   getEditablePlaylists()
     .then(editablePlaylists => {
       return Promise.all(Object.keys(editablePlaylists).filter(key => editablePlaylists[key] === true).map(getAnyPlaylistDataById))
@@ -142,17 +80,10 @@ function showCollaborativePlaylists () {
         setTimeout(() => { item.style.opacity = 1 }, 10)
       })
     })
-}
-const showCollaborativePlaylistsIfLocation = () => {
-  if (getLocationHref().match(playlistRegex)) {
-    showCollaborativePlaylists()
-  }
-}
-onUrlChange(showCollaborativePlaylistsIfLocation)
-showCollaborativePlaylistsIfLocation()
+})
 
 // Update the 'Filter' input and filter dropdown styles
-function updateInputs () {
+runOnPage(playlistRegex, function updateInputs () {
   const sectionPromise = poll(() => document.querySelector('.collectionSection__filters'))
   const listPromise = poll(() => document.querySelector('.badgeList'))
   Promise.all([sectionPromise, listPromise]).then(([section, list]) => {
@@ -189,7 +120,7 @@ function updateInputs () {
         return false
       }
       Array.from(document.querySelectorAll('.collaborativeBadge')).forEach(badge => {
-        if (filterInput.value.length == 0) {
+        if (filterInput.value.length === 0) {
           badge.style.display = 'block'
           return
         }
@@ -210,14 +141,7 @@ function updateInputs () {
       })
     })
   })
-}
-const updateInputsIfLocation = () => {
-  if (getLocationHref().match(playlistRegex)) {
-    setTimeout(() => updateInputs(), 0)
-  }
-}
-onUrlChange(updateInputsIfLocation)
-updateInputsIfLocation()
+})
 
 const playlistsObserver = new MutationObserver(mutations => {
   mutations.forEach(mutation => {
@@ -225,7 +149,7 @@ const playlistsObserver = new MutationObserver(mutations => {
       // Dropdown menu added to DOM
       if (node.classList.contains('dropdownMenu') && node.querySelector('.linkMenu') && node.innerHTML.includes('Liked')) {
         // Add "Collaborative"
-        const collaborativeItem = stringToDom(`
+        const collaborativeItem = stringToDom(`html
           <li class="linkMenu__item sc-type-small">
             <a class="sc-link-dark sc-truncate g-block" href="" data-link-id="collaborative">Collaborative</a>
           </li>

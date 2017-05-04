@@ -1,13 +1,31 @@
-'use strict'
+import { MutationObserver, Image } from './util/window'
+import { runOnPage } from './util/extension'
+import {
+  stringToDom,
+  poll,
+  createGritter,
+  doNothing,
+  initializeTabSwitching
+} from './util/dom'
 
-// TODO: scrolling and adding new tracks, still should fetch collaborative tracks
+import {
+  fetchAuthenticated,
+  getAnyTrackDataById,
+  getUserData,
+  getAnyUserData,
+  getAnyUserDataById,
+  getPlaylistDataHere
+} from './util/data'
+
+const setRegex = /^https:\/\/soundcloud\.com\/[^/]+\/sets\/[^/]+$/
 
 const { getIsCollaborative, setIsCollaborative } = (function () {
   function getPromise () {
     return new Promise((resolve, reject) => {
       // Update isCollaborative
-      getPlaylistData()
+      getPlaylistDataHere()
         .then(playlistData => {
+          // TODO: this will fail I think
           if (playlistData == null) {
             return { isCollaborative: false }
           }
@@ -20,13 +38,9 @@ const { getIsCollaborative, setIsCollaborative } = (function () {
     })
   }
   let isCollaborativePromise
-  const updatePromiseIfLocation = () => {
-    if (getLocationHref().match(setRegex)) {
-      isCollaborativePromise = getPromise()
-    }
-  }
-  onUrlChange(updatePromiseIfLocation)
-  updatePromiseIfLocation()
+  runOnPage(setRegex, () => {
+    isCollaborativePromise = getPromise()
+  })
   return {
     getIsCollaborative () {
       return isCollaborativePromise
@@ -44,8 +58,9 @@ const { getCollaborators, setCollaboratorById } = (function () {
   function getPromise () {
     return new Promise((resolve, reject) => {
       // Update list of collaborators
-      getPlaylistData()
+      getPlaylistDataHere()
         .then(playlistData => {
+          // TODO: again this might fail
           if (playlistData == null) {
             return { collaborators: {} }
           }
@@ -57,13 +72,9 @@ const { getCollaborators, setCollaboratorById } = (function () {
     })
   }
   let collaboratorsPromise
-  const updatePromiseIfLocation = () => {
-    if (getLocationHref().match(setRegex)) {
-      collaboratorsPromise = getPromise()
-    }
-  }
-  onUrlChange(updatePromiseIfLocation)
-  updatePromiseIfLocation()
+  runOnPage(setRegex, () => {
+    collaboratorsPromise = getPromise()
+  })
   return {
     getCollaborators () {
       return collaboratorsPromise
@@ -79,26 +90,23 @@ const { getCollaborators, setCollaboratorById } = (function () {
 
 const getCollaborativeTracks = (function () {
   function getPromise () {
-    return getPlaylistData()
+    return getPlaylistDataHere()
       .then(playlistData => {
+        // TODO: wow lol this doesn't even check if that data exists
         return fetchAuthenticated(`/api/getTracks?playlistId=${playlistData.id}`)
       })
       .then(response => response.json())
       .then(data => data.tracks || {})
   }
   let getCollaborativeTracksPromise
-  const updatePromiseIfLocation = () => {
-    if (getLocationHref().match(setRegex)) {
-      getCollaborativeTracksPromise = getPromise()
-    }
-  }
-  onUrlChange(updatePromiseIfLocation)
-  updatePromiseIfLocation()
+  runOnPage(setRegex, () => {
+    getCollaborativeTracksPromise = getPromise()
+  })
   return () => getCollaborativeTracksPromise
 }())
 
 // Load collaborative tracks!
-function showCollaborativeTracks () {
+runOnPage(setRegex, function showCollaborativeTracks () {
   function addCollaborator (node, addedBy) {
     if (node.querySelector('#collaboratorImage') != null) {
       return
@@ -107,7 +115,7 @@ function showCollaborativeTracks () {
     image.style.marginRight = '4px'
     const number = node.querySelector('.trackItem__numberWrapper')
     number.parentNode.removeChild(number)
-    const collaboratorImage = stringToDom(`
+    const collaboratorImage = stringToDom(`html
       <div class="trackItem__image" style="margin-right: 4.69px;">
         <div id="collaboratorImage" class="image m-sound image__lightOutline readOnly customImage sc-artwork sc-artwork-placeholder-9 m-loaded" style="height: 30px; width: 30px; background-image: none">
           <span style="width: 30px; height: 30px; opacity: 0;" class="sc-artwork sc-artwork-placeholder-9 image__full image__rounded g-opacity-transition" aria-label="${addedBy.name}" aria-role="img"></span>
@@ -163,17 +171,10 @@ function showCollaborativeTracks () {
         })
       })
     })
-}
-const showCollaborativeTracksIfLocation = () => {
-  if (location.href.match(setRegex)) {
-    showCollaborativeTracks()
-  }
-}
-onUrlChange(showCollaborativeTracksIfLocation)
-showCollaborativeTracksIfLocation()
+})
 
 // Show "Collaborative" indicator
-function showCollaborative () {
+runOnPage(setRegex, function showCollaborative () {
   const isCollaborativePromise = getIsCollaborative()
   const elPromise = poll(() => document.querySelector('.fullHero__uploadTime'))
   Promise.all([isCollaborativePromise, elPromise])
@@ -184,28 +185,23 @@ function showCollaborative () {
         setTimeout(() => { indicator.style.opacity = 1 }, 10)
       }
     })
-}
-const showCollaborativeIfLocation = () => {
-  if (getLocationHref().match(setRegex)) {
-    showCollaborative()
-  }
-}
-onUrlChange(showCollaborativeIfLocation)
-showCollaborativeIfLocation()
+})
 
 // DOM helpers
 const ctaButtonSelector = '.audibleEditForm__formButtons .sc-button-cta'
 const cancelButtonSelector = '.audibleEditForm__formButtons .sc-button[title="Cancel"]'
 
 // Inject some dank CSS
-document.head.appendChild(stringToDom(`<style>
-  .editTrackList__list:not(:empty) {
-    margin-bottom: 15px;
-  }
-  .editTrackList__item.toRemove {
-    display: none!important;
-  }
-</style>`))
+document.head.appendChild(stringToDom(`html
+  <style>
+    .editTrackList__list:not(:empty) {
+      margin-bottom: 15px;
+    }
+    .editTrackList__item.toRemove {
+      display: none!important;
+    }
+  </style>
+`))
 
 function getPlaylistArtworkUrl () {
   const meta = document.head.querySelector('meta[property="twitter:image"]')
@@ -220,7 +216,7 @@ function getPlaylistArtworkUrl () {
 }
 
 function createCollaboratorListItem (userData, isNew) {
-  const dom = stringToDom(`
+  const dom = stringToDom(`html
     <li class="editTrackList__item sc-border-light-bottom" style="display: list-item;">
       <div class="editTrackItem sc-type-small">
         <div class="editTrackItem__image sc-media-image">',
@@ -266,7 +262,7 @@ const setsObserver = new MutationObserver(mutations => {
         // "Save Changes" override
         const ctaButton = document.querySelector(ctaButtonSelector)
         ctaButton.addEventListener('click', () => {
-          Promise.all([getPlaylistData(), getIsCollaborative(), getCollaborators()])
+          Promise.all([getPlaylistDataHere(), getIsCollaborative(), getCollaborators()])
             .then(([playlistData, isCollaborative, collaborators]) => {
               // Style the simulated pending save
               ctaButton.classList.add('sc-pending')
@@ -389,7 +385,7 @@ const setsObserver = new MutationObserver(mutations => {
         tab.appendChild(list)
 
         // "Add Collaborator" input
-        const input = stringToDom(`
+        const input = stringToDom(`html
           <div>
             <div class="textfield" id="scCollaboratorTextfield">
               <label for="scCollaboratorInput">
@@ -434,7 +430,7 @@ const setsObserver = new MutationObserver(mutations => {
           }
           // Also support adding by profile URL
           let userId
-          if (collaboratorInput.value.match(/^https:\/\/soundcloud\.com\/[^\/]+$/)) {
+          if (collaboratorInput.value.match(/^https:\/\/soundcloud\.com\/[^/]+$/)) {
             userId = collaboratorInput.value.substring(collaboratorInput.value.lastIndexOf('/') + 1)
           } else {
             userId = collaboratorInput.value
