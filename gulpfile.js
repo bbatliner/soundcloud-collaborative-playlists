@@ -6,6 +6,7 @@ const webpack = require('gulp-webpack')
 const clean = require('gulp-clean')
 const babili = require('gulp-babili')
 const htmlmin = require('gulp-htmlmin')
+const zip = require('gulp-zip')
 
 gulp.task('standard', function () {
   return gulp.src([
@@ -85,3 +86,15 @@ gulp.task('minify', ['minify:js', 'minify:html'])
 
 gulp.task('default', ['build'])
 gulp.task('prod', ['build', 'minify'])
+
+gulp.task('prepare', ['prod'], () => {
+  return gulp.src([
+    'extension/manifest.json',
+    'extension/icons/**/*',
+    'extension/vendor/**/*',
+    'extension/build/*.js',
+    'extension/build/*.html'
+  ], { base: 'extension' })
+    .pipe(zip('sccollaborativeplaylists.zip'))
+    .pipe(gulp.dest('extension/build'))
+})
