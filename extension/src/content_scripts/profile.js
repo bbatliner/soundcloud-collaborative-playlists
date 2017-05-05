@@ -101,27 +101,29 @@ const createSetListItem = createPlaylistItemCreator({
   `
 })
 
+// TODO: highlight collaborative sets, too
+
 // Show collaborative sets
 runOnPage(profileRegex, function showCollaborativeSets () {
   getEditablePlaylists()
-  .then(editablePlaylists => {
-    return Promise.all(Object.keys(editablePlaylists).filter(key => editablePlaylists[key] === true).map(getAnyPlaylistDataById))
-  })
-  .then(playlistDataArr => {
-    const listPromise = poll(() => document.querySelector('.lazyLoadingList__list'), 10, 5000)
-    const badgeItemsPromise = Promise.all(
-    playlistDataArr
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-      .map(createSetListItem)
-    )
-    return Promise.all([listPromise, badgeItemsPromise])
-  })
-  .then(([list, badgeItems]) => {
-    badgeItems.forEach(item => {
-      item.style.opacity = 0
-      item.classList.add('g-opacity-transition')
-      list.appendChild(item)
-      setTimeout(() => { item.style.opacity = 1 }, 10)
+    .then(editablePlaylists => {
+      return Promise.all(Object.keys(editablePlaylists).filter(key => editablePlaylists[key] === true).map(getAnyPlaylistDataById))
     })
-  })
+    .then(playlistDataArr => {
+      const listPromise = poll(() => document.querySelector('.lazyLoadingList__list'), 10, 5000)
+      const badgeItemsPromise = Promise.all(
+      playlistDataArr
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .map(createSetListItem)
+      )
+      return Promise.all([listPromise, badgeItemsPromise])
+    })
+    .then(([list, badgeItems]) => {
+      badgeItems.forEach(item => {
+        item.style.opacity = 0
+        item.classList.add('g-opacity-transition')
+        list.appendChild(item)
+        setTimeout(() => { item.style.opacity = 1 }, 10)
+      })
+    })
 })
