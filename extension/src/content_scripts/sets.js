@@ -157,6 +157,9 @@ runOnPage(setRegex, function showCollaborativeTracks () {
 
 // Show "Collaborative" indicator
 function showCollaborative () {
+  if (document.querySelector('#collaborative-indicator')) {
+    return
+  }
   const isCollaborativePromise = getIsCollaborative()
   const elPromise = poll(() => document.querySelector('.fullHero__uploadTime'))
   Promise.all([isCollaborativePromise, elPromise])
@@ -172,7 +175,7 @@ function hideCollaborative () {
   const indicatorPromise = poll(() => document.querySelector('#collaborative-indicator'))
   indicatorPromise.then(indicator => {
     indicator.parentNode.removeChild(indicator)
-  })
+  }).catch(() => {})
 }
 runOnPage(setRegex, showCollaborative)
 
@@ -208,11 +211,11 @@ function createCollaboratorListItem (userData, isNew) {
   const dom = stringToDom(`html
     <li class="editTrackList__item sc-border-light-bottom" style="display: list-item;">
       <div class="editTrackItem sc-type-small">
-        <div class="editTrackItem__image sc-media-image">',
+        <div class="editTrackItem__image sc-media-image">
           <div class="image m-sound image__lightOutline readOnly customImage sc-artwork sc-artwork-placeholder-10 m-loaded" style="height: 30px; width: 30px;"><span style="background-image: url(&quot;${userData.avatar_url}&quot;); width: 30px; height: 30px; opacity: 1;" class="sc-artwork sc-artwork-placeholder-10 image__full g-opacity-transition"></span>
           </div>
         </div>
-        <div class="sc-media-content sc-truncate">',
+        <div class="sc-media-content sc-truncate">
           <span class="sc-link-light" data-id="${userData.id}">${userData.full_name}</span>
         </div>
         <div class="editTrackItem__additional">
