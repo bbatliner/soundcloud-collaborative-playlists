@@ -1,6 +1,7 @@
 import { runOnPage } from './util/extension'
-import { createPlaylistItemCreator, poll } from './util/dom'
+import { poll } from './util/dom'
 import { getEditablePlaylists, getAnyPlaylistDataById } from './util/data'
+import { createPlaylistItemCreator } from './common'
 
 const profileRegex = /^https:\/\/soundcloud\.com\/(?!you)[^/]+\/sets$/
 

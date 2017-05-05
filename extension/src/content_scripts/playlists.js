@@ -1,7 +1,8 @@
 import { MutationObserver } from './util/window'
 import { runOnPage } from './util/extension'
-import { stringToDom, poll, doNothing, createPlaylistItemCreator } from './util/dom'
-import { getEditablePlaylists, getAnyPlaylistDataById } from './util/data'
+import { stringToDom, poll, doNothing } from './util/dom'
+import { getUserData, getEditablePlaylists, getAnyPlaylistDataById } from './util/data'
+import { updateAudibleTiles, createPlaylistItemCreator } from './common'
 
 const playlistRegex = /^https:\/\/soundcloud\.com\/you\/sets$/
 
@@ -59,14 +60,16 @@ const createPlaylistBadgeItem = createPlaylistItemCreator({
 
 // Show collaborative playlists
 runOnPage(playlistRegex, function showCollaborativePlaylists () {
-  getEditablePlaylists()
-    .then(editablePlaylists => {
-      return Promise.all(Object.keys(editablePlaylists).filter(key => editablePlaylists[key] === true).map(getAnyPlaylistDataById))
-    })
-    .then(playlistDataArr => {
+  const userDataPromise = getUserData()
+  const playlistDataArrPromise = getEditablePlaylists().then(editablePlaylists => {
+    return Promise.all(Object.keys(editablePlaylists).filter(key => editablePlaylists[key] === true).map(getAnyPlaylistDataById))
+  })
+  Promise.all([userDataPromise, playlistDataArrPromise])
+    .then(([userData, playlistDataArr]) => {
       const listPromise = poll(() => document.querySelector('.lazyLoadingList__list'), 10, 5000)
       const badgeItemsPromise = Promise.all(
         playlistDataArr
+          .filter(playlistData => playlistData.user.id !== userData.id)
           .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
           .map(createPlaylistBadgeItem)
       )
@@ -82,8 +85,13 @@ runOnPage(playlistRegex, function showCollaborativePlaylists () {
     })
 })
 
+// Highlight own collaborative playlists
+runOnPage(playlistRegex, () => {
+  setTimeout(updateAudibleTiles, 0)
+})
+
 // Update the 'Filter' input and filter dropdown styles
-runOnPage(playlistRegex, function updateInputs () {
+function updateInputs () {
   const sectionPromise = poll(() => document.querySelector('.collectionSection__filters'))
   const listPromise = poll(() => document.querySelector('.badgeList'))
   Promise.all([sectionPromise, listPromise]).then(([section, list]) => {
@@ -107,6 +115,7 @@ runOnPage(playlistRegex, function updateInputs () {
         handlers.push(fn)
       }
     }())
+    // TODO: styles get hidden on filter, but don't want to have to refetch data.
     const filterInput = section.querySelector('input.textfield__input')
     filterInput.addEventListener('input', () => {
       function matches (badge) {
@@ -141,6 +150,9 @@ runOnPage(playlistRegex, function updateInputs () {
       })
     })
   })
+}
+runOnPage(playlistRegex, () => {
+  setTimeout(updateInputs, 0)
 })
 
 const playlistsObserver = new MutationObserver(mutations => {

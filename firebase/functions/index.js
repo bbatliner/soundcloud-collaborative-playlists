@@ -184,14 +184,16 @@ apiRouter.get('/markCollaborative', (req, res) => {
 
   // Users can only mark their own playlists collaborative
   ensurePlaylistOwnership(req.query.playlistId)(req, res, () => {
-    admin.database().ref(`collaborativePlaylists/${req.query.playlistId}`).set(true, (err) => {
-      if (err) {
+    const markPromise = admin.database().ref(`collaborativePlaylists/${req.query.playlistId}`).set(true)
+    const selfPermissionPromise = admin.database().ref(`editPermissions/users/${req.user.uid}/${req.query.playlistId}`).set(true)
+    Promise.all([markPromise, selfPermissionPromise])
+      .then(() => {
+        res.send()
+      })
+      .catch((err) => {
         console.error(err)
         res.status(500).json({ error: 'Internal server error.' })
-        return
-      }
-      res.send()
-    })
+      })
   })
 })
 

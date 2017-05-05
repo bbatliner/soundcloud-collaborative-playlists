@@ -6,8 +6,7 @@ import {
   poll,
   getClosest,
   createGritter,
-  doNothing,
-  initializeTabSwitching
+  doNothing
 } from './util/dom'
 
 import {
@@ -17,6 +16,8 @@ import {
   getPlaylistDataHere,
   getTrackDataHere
 } from './util/data'
+
+import { initializeTabSwitching } from './common'
 
 // const trackRegex = /^https:\/\/soundcloud\.com\/(?!you|stream|search)[^/]+\/[^/]+(\?in=.*)?$/
 

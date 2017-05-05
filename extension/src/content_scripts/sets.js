@@ -6,8 +6,7 @@ import {
   stringToDom,
   poll,
   createGritter,
-  doNothing,
-  initializeTabSwitching
+  doNothing
 } from './util/dom'
 
 import {
@@ -18,25 +17,17 @@ import {
   getPlaylistDataHere
 } from './util/data'
 
+import { initializeTabSwitching } from './common'
+
 const setRegex = /^https:\/\/soundcloud\.com\/[^/]+\/sets\/[^/]+$/
 
 const { getIsCollaborative, setIsCollaborative } = (function () {
   function getPromise () {
-    return new Promise((resolve, reject) => {
-      // Update isCollaborative
-      getPlaylistDataHere()
-        .then(playlistData => {
-          // TODO: this will fail I think
-          if (playlistData == null) {
-            return { isCollaborative: false }
-          }
-          return fetchAuthenticated(`/api/isCollaborative?playlistId=${playlistData.id}`).then(response => response.json())
-        })
-        .then(response => {
-          resolve(response.isCollaborative)
-        })
-        .catch(reject)
-    })
+    return getPlaylistDataHere()
+      .then(playlistData => {
+        return fetchAuthenticated(`/api/isCollaborative?playlistId=${playlistData.id}`).then(response => response.json())
+      })
+      .then(response => response.isCollaborative)
   }
   let isCollaborativePromise
   runOnPage(setRegex, () => {
@@ -57,20 +48,11 @@ const { getIsCollaborative, setIsCollaborative } = (function () {
 
 const { getCollaborators, setCollaboratorById } = (function () {
   function getPromise () {
-    return new Promise((resolve, reject) => {
-      // Update list of collaborators
-      getPlaylistDataHere()
-        .then(playlistData => {
-          // TODO: again this might fail
-          if (playlistData == null) {
-            return { collaborators: {} }
-          }
-          return fetchAuthenticated(`/api/collaborators?playlistId=${playlistData.id}`).then(response => response.json())
-        })
-        .then(response => {
-          resolve(response.collaborators || {})
-        })
-    })
+    return getPlaylistDataHere()
+      .then(playlistData => {
+        return fetchAuthenticated(`/api/collaborators?playlistId=${playlistData.id}`).then(response => response.json())
+      })
+      .then(response => response.collaborators || {})
   }
   let collaboratorsPromise
   runOnPage(setRegex, () => {
@@ -93,7 +75,6 @@ const getCollaborativeTracks = (function () {
   function getPromise () {
     return getPlaylistDataHere()
       .then(playlistData => {
-        // TODO: wow lol this doesn't even check if that data exists
         return fetchAuthenticated(`/api/getTracks?playlistId=${playlistData.id}`)
       })
       .then(response => response.json())
@@ -175,18 +156,25 @@ runOnPage(setRegex, function showCollaborativeTracks () {
 })
 
 // Show "Collaborative" indicator
-runOnPage(setRegex, function showCollaborative () {
+function showCollaborative () {
   const isCollaborativePromise = getIsCollaborative()
   const elPromise = poll(() => document.querySelector('.fullHero__uploadTime'))
   Promise.all([isCollaborativePromise, elPromise])
     .then(([isCollaborative, el]) => {
       if (isCollaborative) {
-        const indicator = stringToDom('<span class="sc-button sc-button-responsive sc-button-cta sc-collaborative-label g-opacity-transition" style="margin-top: 2px; opacity: 0">Collaborative</span>')
+        const indicator = stringToDom('<span id="collaborative-indicator" class="sc-button sc-button-responsive sc-button-cta sc-collaborative-label g-opacity-transition" style="margin-top: 2px; opacity: 0">Collaborative</span>')
         el.appendChild(indicator)
         setTimeout(() => { indicator.style.opacity = 1 }, 10)
       }
     })
-})
+}
+function hideCollaborative () {
+  const indicatorPromise = poll(() => document.querySelector('#collaborative-indicator'))
+  indicatorPromise.then(indicator => {
+    indicator.parentNode.removeChild(indicator)
+  })
+}
+runOnPage(setRegex, showCollaborative)
 
 // DOM helpers
 const ctaButtonSelector = '.audibleEditForm__formButtons .sc-button-cta'
@@ -274,8 +262,10 @@ const setsObserver = new MutationObserver(mutations => {
 
               // Handle isCollaborative
               if (isCollaborative) {
+                showCollaborative()
                 promises.push(fetchAuthenticated(`/api/markCollaborative?playlistId=${playlistData.id}`))
               } else {
+                hideCollaborative()
                 promises.push(fetchAuthenticated(`/api/unmarkCollaborative?playlistId=${playlistData.id}`))
               }
 
@@ -306,7 +296,6 @@ const setsObserver = new MutationObserver(mutations => {
                         image: getPlaylistArtworkUrl().replace('500x500', '50x50')
                       })
                     }
-                    // TODO: add Collaborative label
                   } else {
                     console.warn('Unable to close modal - close button not found.')
                   }

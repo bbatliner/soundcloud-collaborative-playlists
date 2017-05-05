@@ -13,6 +13,13 @@ function checkStatus (response) {
   return response
 }
 
+function transformPlaylistData (data) {
+  if (!data.artwork_url) {
+    data.artwork_url = data.tracks.find(track => track.artwork_url != null).artwork_url
+  }
+  return data
+}
+
 function playlistPageToJson (html) {
   return JSON.parse(html.substring(html.indexOf('artwork_url') - 3, html.indexOf('}]}]') + 2))[0]
 }
@@ -75,12 +82,14 @@ export function getAnyPlaylistDataById (playlistId) {
   return fetch(`https://api.soundcloud.com/playlists/${playlistId}.json?client_id=${CLIENT_ID}`)
     .then(checkStatus)
     .then(response => response.json())
+    .then(transformPlaylistData)
 }
 
 export function getAnyPlaylistData (url) {
   return fetch(`https://api.soundcloud.com/resolve.json?url=${url}&client_id=${CLIENT_ID}`)
     .then(checkStatus)
     .then(response => response.json())
+    .then(transformPlaylistData)
     .catch(err => {
       return checkPlaylistError(err, url)
     })

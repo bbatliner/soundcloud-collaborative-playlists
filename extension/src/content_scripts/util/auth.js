@@ -30,6 +30,7 @@ export const fetchAuthenticated = (function () {
     addEventListener({
       runOnce: true,
       success (e) {
+        chrome.runtime.sendMessage({ type: 'auth', loggedIn: true })
         resolve(e.data)
       },
       fail () {
