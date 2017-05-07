@@ -123,30 +123,43 @@ runOnPage(setRegex, function showCollaborativeTracks () {
   // Update track items with collaborative avatars
   Promise.all([collaborativeTracksPromise, listPromise])
     .then(([collaborativeTracks, list]) => {
+      const hrefs = {}
       Object.keys(collaborativeTracks).forEach(trackId => {
         getAnyTrackDataById(trackId).then(trackData => {
           const addedBy = collaborativeTracks[trackData.id]
-          const listItem = Array.from(list.children).filter(el => {
+          hrefs[trackData.permalink_url] = { trackData, addedBy }
+          const listItem = Array.from(list.children).find(el => {
             const titleEl = el.querySelector('.trackItem__trackTitle')
-            return titleEl && titleEl.innerText === trackData.title
-          })[0]
-          if (!listItem) {
-            return
+            return titleEl && titleEl.href.replace(/\?.*/, '') === trackData.permalink_url.replace(/http(?!s)/, 'https')
+          })
+          if (listItem) {
+            addCollaborator(listItem, addedBy)
           }
-          addCollaborator(listItem, addedBy)
           const listItemObserver = new MutationObserver(mutations => {
             mutations.forEach(mutation => {
               mutation.addedNodes.forEach(node => {
+                // If we've added the image to this item before, don't do it again
                 if (node.querySelector && node.querySelector('#collaboratorImage')) {
                   return
                 }
-                if (node.parentNode && node.parentNode.parentNode && node.parentNode.parentNode.matches('li.trackList__item')) {
-                  addCollaborator(node.parentNode.parentNode, addedBy)
+                // If we can't even find the list item, stop now
+                if (!node.parentNode || !node.parentNode.parentNode) {
+                  return
+                }
+                // Ensure the parent's parent is a list item
+                if (!node.parentNode.parentNode.matches('li.trackList__item')) {
+                  return
+                }
+                // Add the collaborator for this track, if it exists
+                const trackItem = node.parentNode.parentNode
+                const href = trackItem.querySelector('.trackItem__trackTitle').href.replace(/\?.*/, '')
+                if (hrefs[href]) {
+                  addCollaborator(trackItem, hrefs[href].addedBy)
                 }
               })
             })
           })
-          listItemObserver.observe(listItem.parentNode, {
+          listItemObserver.observe(list, {
             childList: true,
             subtree: true
           })
