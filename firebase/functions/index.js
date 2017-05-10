@@ -312,6 +312,14 @@ function addRemoveHelper (req, res, tracksFn, collaboratorInfo) {
         error.body = { error: 'The playlist owner does not have a Collaborative Playlist account.' }
         throw error
       }
+      // TODO: A large playlist (343 songs) of mine got gutted (down to 271 songs) when adding a new track via the API.
+      // This is one potential reason that could've happened.
+      if (playlistData.track_count !== playlistData.tracks.length) {
+        const error = new Error('Internal server error.')
+        error.status = 500
+        error.body = { error: 'SoundCloud playlist data is not in a consistent state.' }
+        throw error
+      }
       // Add/remove the track on SoundCloud
       const tracks = playlistData.tracks.map(track => ({ id: track.id }))
       const modifiedTracks = tracksFn(tracks.slice(0))
