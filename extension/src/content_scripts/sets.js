@@ -396,7 +396,7 @@ const setsObserver = new MutationObserver(mutations => {
           <div>
             <div class="textfield" id="scCollaboratorTextfield">
               <label for="scCollaboratorInput">
-                <span class="textfield__label">Add collaborator</span>
+                <span class="textfield__label">Add collaborator (ex. <em>username</em> or <em>https://soundcloud.com/username</em>)</span>
               </label>
               <div class="textfield__inputWrapper">
                 <input class="textfield__input sc-input sc-input-medium" id="scCollaboratorInput" type="text">
