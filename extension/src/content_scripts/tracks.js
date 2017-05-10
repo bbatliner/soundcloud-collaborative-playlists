@@ -213,10 +213,10 @@ const tracksObserver = new MutationObserver(mutations => {
         })
         Promise.all([userDataPromise, playlistDataArrPromise])
           .then(([userData, playlistDataArr]) => {
-            const listPromise = poll(() => document.querySelector('.lazyLoadingList__list'), 10, 5000)
+            const listPromise = poll(() => document.querySelector('.addToPlaylist .lazyLoadingList__list'), 10, 5000)
             const listItemsPromise = Promise.all(
               playlistDataArr
-                .filter(playlistData => playlistData.user.id !== userData.id)
+                .filter(playlistData => playlistData != null && playlistData.user.id !== userData.id)
                 .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
                 .map(createPlaylistListItem)
             )
@@ -318,7 +318,8 @@ const tracksObserver = new MutationObserver(mutations => {
                   const hr = document.getElementById('collaborativeSetDivider')
                   const noCollaborative = collaborativePlaylists.every(list => list.style.display === 'none')
                   const onlyCollaborative = collaborativePlaylists.length === 0
-                  if (noCollaborative || onlyCollaborative) {
+                  const noOthers = list.children.length === 0
+                  if (noCollaborative || onlyCollaborative || noOthers) {
                     hr.style.display = 'none'
                   } else {
                     hr.style.display = ''

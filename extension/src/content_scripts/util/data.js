@@ -14,6 +14,10 @@ function checkStatus (response) {
 }
 
 function transformPlaylistData (data) {
+  // Verify this is actually playlist data
+  if (!data.hasOwnProperty('tracks')) {
+    return null
+  }
   if (!data.artwork_url) {
     data.artwork_url = data.tracks.find(track => track.artwork_url != null).artwork_url
   }
@@ -28,10 +32,16 @@ function trackPageToJson (html) {
   return JSON.parse(html.substring(html.indexOf('artwork_url') - 2, html.indexOf('}]}}}') + 5))
 }
 
-function checkPlaylistError (err, url) {
+function checkPlaylistError ({ err, url, trackId } = {}) {
   // If the playlist isn't available via API, then load it via web and scrape the JSON
   if (err.response && err.response.status === 500) {
-    return fetch(url).then(response => response.text()).then(playlistPageToJson)
+    if (url) {
+      return fetch(url).then(response => response.text()).then(playlistPageToJson)
+    }
+  }
+  // If the playlists 404s, it probably got deleted, so just return null
+  if (err.response && err.response.status === 404) {
+    return null
   }
   throw err
 }
@@ -83,6 +93,9 @@ export function getAnyPlaylistDataById (playlistId) {
     .then(checkStatus)
     .then(response => response.json())
     .then(transformPlaylistData)
+    .catch(err => {
+      return checkPlaylistError({ err, playlistId })
+    })
 }
 
 export function getAnyPlaylistData (url) {
@@ -91,7 +104,7 @@ export function getAnyPlaylistData (url) {
     .then(response => response.json())
     .then(transformPlaylistData)
     .catch(err => {
-      return checkPlaylistError(err, url)
+      return checkPlaylistError({ err, url })
     })
 }
 

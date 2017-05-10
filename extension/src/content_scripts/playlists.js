@@ -69,7 +69,7 @@ runOnPage(playlistRegex, function showCollaborativePlaylists () {
       const listPromise = poll(() => document.querySelector('.lazyLoadingList__list'), 10, 5000)
       const badgeItemsPromise = Promise.all(
         playlistDataArr
-          .filter(playlistData => playlistData.user.id !== userData.id)
+          .filter(playlistData => playlistData != null && playlistData.user.id !== userData.id)
           .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
           .map(createPlaylistBadgeItem)
       )

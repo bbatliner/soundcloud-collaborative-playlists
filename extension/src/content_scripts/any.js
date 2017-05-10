@@ -18,6 +18,11 @@ document.body.addEventListener('mousedown', (e) => {
       window.currentTrackUrl = trackListItem.querySelector('.trackItem__trackTitle').href
       return
     }
+    const searchListItem = getClosest('.searchItem__trackItem', target)
+    if (searchListItem) {
+      window.currentTrackUrl = searchListItem.querySelector('.soundTitle__title').href
+      return
+    }
     console.warn('Unable to find track URL', e.target)
   }
 })
