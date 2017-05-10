@@ -14,7 +14,8 @@ import {
   getAnyPlaylistDataById,
   getEditablePlaylists,
   getPlaylistDataHere,
-  getTrackDataHere
+  getTrackDataHere,
+  getUserData
 } from './util/data'
 
 import { initializeTabSwitching } from './common'
@@ -206,14 +207,16 @@ const tracksObserver = new MutationObserver(mutations => {
             })
         }
         // Playlist list
-        getEditablePlaylists()
-          .then(editablePlaylists => {
-            return Promise.all(Object.keys(editablePlaylists).filter(key => editablePlaylists[key] === true).map(getAnyPlaylistDataById))
-          })
-          .then(playlistDataArr => {
-            const listPromise = poll(() => node.querySelector('.lazyLoadingList__list'), 10, 5000)
+        const userDataPromise = getUserData()
+        const playlistDataArrPromise = getEditablePlaylists().then(editablePlaylists => {
+          return Promise.all(Object.keys(editablePlaylists).filter(key => editablePlaylists[key] === true).map(getAnyPlaylistDataById))
+        })
+        Promise.all([userDataPromise, playlistDataArrPromise])
+          .then(([userData, playlistDataArr]) => {
+            const listPromise = poll(() => document.querySelector('.lazyLoadingList__list'), 10, 5000)
             const listItemsPromise = Promise.all(
               playlistDataArr
+                .filter(playlistData => playlistData.user.id !== userData.id)
                 .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
                 .map(createPlaylistListItem)
             )
